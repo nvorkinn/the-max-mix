@@ -12,7 +12,7 @@
     "**/package-lock.json",
     "LICENSE",
     "e2e/fixtures/soloist",
-    "pi/kiosk-audio/imager-fixtures",
+    "server/src/imager-fixtures",
     "image/rootfs/etc/apt/keyrings",
     "image/rootfs/usr/share/icons/blank/cursors"
   ],

@@ -1,7 +1,7 @@
 // Who Spotify Soloist plays for. Soloist (Spotify's headless Spotify Connect player) runs on the Pi with the active
 // person's own API key, which they saved on countdown-server's settings site. That key is answered only to the Pi's
 // service, never to this page, so this only says who is active, with the device secret: the service
-// (POST /soloist/person, pi/kiosk-audio/soloist.ts) fetches their key and runs Soloist for them. With nobody signed in,
+// (POST /soloist/person, server/src/soloist.ts) fetches their key and runs Soloist for them. With nobody signed in,
 // it stops Soloist (POST /soloist/stop). Switching person reloads the page, which says it again.
 
 import type { Client } from '../../vendor/countdown-api/src/countdown_api/client';
@@ -15,7 +15,7 @@ import { serverClient } from './config';
  */
 const SOLOIST_PERSON_MS = 10 * 60_000;
 
-/** What the service said Soloist is doing (pi/kiosk-audio/soloist.ts's SoloistState), or null when it did not answer. */
+/** What the service said Soloist is doing (server/src/soloist.ts's SoloistState), or null when it did not answer. */
 type SoloistState = string | null;
 
 let lastState: SoloistState = null;

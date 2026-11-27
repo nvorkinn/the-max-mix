@@ -6,7 +6,7 @@ const SOLOIST_SOCKET = `${KIOSK_SERVICE.replace(/^http/, 'ws')}/soloist`;
 
 /**
  * Spotify Soloist as Spotify lists it, under the name the Pi's service gives it, from the kiosk's name or its host name
- * (pi/kiosk-audio/soloist.ts): the-max-mix-1's.
+ * (server/src/soloist.ts): the-max-mix-1's.
  */
 const SOLOIST_DEVICE: SpotifyDevice = {
   id: 'soloist-device',
@@ -24,7 +24,7 @@ const send = (ws: WebSocketRoute, message: object) => {
 
 /**
  * Makes the page the kiosk with its own player, Spotify Soloist, as the Pi runs it: the service's /soloist WebSocket
- * (pi/kiosk-audio/soloist-socket.ts) says Soloist is there and signed in, and the fake Spotify account (`spotify`, from
+ * (server/src/soloist-socket.ts) says Soloist is there and signed in, and the fake Spotify account (`spotify`, from
  * fakeSpotify, which this is called after) lists it as a device. Soloist never becomes the active device here, so every
  * command still goes to the fake account through the Web API, which keeps its state. Tests make the service say Soloist
  * went away, and count the page's connections (a reconnect makes another).

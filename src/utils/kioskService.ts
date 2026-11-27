@@ -1,4 +1,4 @@
-// The kiosk's local service (pi/kiosk-audio/server.ts), which only answers the Pi's own browser, on its own address.
+// The kiosk's local service (server/src/server.ts), which only answers the Pi's own browser, on its own address.
 // The app uses it for what a page cannot do itself: listing the AirPlay speakers, routing the sound, the Wi-Fi, turning
 // the screen on, restarting and rebooting the Pi, and updating it (which it streams back).
 export const KIOSK_SERVICE = 'http://127.0.0.1:7341';
@@ -22,7 +22,7 @@ export function kioskPost(path: string, body?: unknown): void {
 type UpdateState = 'installing' | 'installed' | 'restarting' | 'done' | 'failed';
 
 /**
- * What the kiosk sends while it updates (pi/kiosk-audio/update.ts): the journal's lines, and the steps it is at:
+ * What the kiosk sends while it updates (server/src/update.ts): the journal's lines, and the steps it is at:
  * installing, then installed (its message is the version waiting for a restart) or done.
  */
 export type UpdateEvent =
@@ -84,7 +84,7 @@ export function openUpdateStream(handlers: {
   };
 }
 
-/** What an image Pi's update channel has (pi/kiosk-audio/image-update.ts check). Versions are `<ref>+<commit>`. */
+/** What an image Pi's update channel has (server/src/image-update.ts check). Versions are `<ref>+<commit>`. */
 export interface ImageUpdateCheck {
   current: string | null;
   /** Installed in the other slot, waiting for a restart. */

@@ -1,4 +1,4 @@
-// The camera built into the kiosk's screen, through its service (pi/kiosk-audio/camera.ts): whether there is one, and
+// The camera built into the kiosk's screen, through its service (server/src/camera.ts): whether there is one, and
 // where its picture comes from. The service reads it because Chromium on the kiosk cannot open a ribbon-cable camera.
 import { KIOSK_SERVICE } from './kioskService';
 

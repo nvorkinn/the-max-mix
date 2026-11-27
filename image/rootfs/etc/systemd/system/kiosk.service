@@ -29,12 +29,12 @@ EnvironmentFile=-/usr/lib/the-max-mix/release.env
 EnvironmentFile=-/run/the-max-mix/app/release.env
 # A screen whose own mode has an odd horizontal timing, which the Pi 4 cannot send, is left with the other modes it lists
 # (1920x1080 on a 1280x800 panel). This gives the kernel that mode with even timings before Cage chooses one; it does
-# nothing for any other screen (the + runs it as root, the - ignores a failure). See pi/kiosk-audio/screen-mode.ts.
+# nothing for any other screen (the + runs it as root, the - ignores a failure). See server/src/screen-mode.ts.
 ExecStartPre=-+/usr/local/lib/the-max-mix/app-node screen-mode.ts --correct
 # How to show the screen that is plugged in (KIOSK_ROTATION and KIOSK_SCALE, or the screen's own settings when they are
 # empty), and its mode on the boot partition's kernel command line (KIOSK_VIDEO_MODE, or the screen's own): writes
 # /run/kiosk/screen.env, read below and by kiosk-audio, and the touch screen's rotation (the + runs it as root, the -
-# ignores a failure, which leaves the screen as it is). See pi/kiosk-audio/screen-setup.ts.
+# ignores a failure, which leaves the screen as it is). See server/src/screen-setup.ts.
 ExecStartPre=-+/usr/local/lib/the-max-mix/app-node screen-setup.ts --rotation=${KIOSK_ROTATION} --scale=${KIOSK_SCALE} --video-mode=${KIOSK_VIDEO_MODE} --cmdline=/boot/firmware/cmdline.txt
 # Show VT 7 (the + runs this as root). Cage cannot take the display while another VT is in front.
 ExecStartPre=+/usr/bin/chvt 7

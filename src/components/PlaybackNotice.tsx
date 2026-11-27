@@ -36,7 +36,7 @@ export function describePlayback(notice: PlayerNotice, t: Translate, fixes: Play
     settings: { title: t('notice.settings_title'), action: fix(t('settings.title'), fixes.onSettings) },
     'soloist-key': { title: t('notice.soloist_key_title'), action: fix(t('settings.title'), fixes.onSettings) },
     'pick-on-phone': {
-      // The name the kiosk's Soloist reported, which differs per kiosk (pi/kiosk-audio/soloist.ts).
+      // The name the kiosk's Soloist reported, which differs per kiosk (server/src/soloist.ts).
       title: notice.problem.device
         ? t('notice.pick_on_phone_title', { device: notice.problem.device })
         : t('notice.pick_kiosk_on_phone_title')

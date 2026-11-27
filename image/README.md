@@ -20,11 +20,11 @@ writes `/usr/lib/the-max-mix/release.env`:
 ```sh
 KIOSK_RELEASE_REF=v2.53.0   # the tag, or the channel (dev, branch-<name>)
 KIOSK_RELEASE_COMMIT=<the full commit>
-KIOSK_RELEASE_OS=<names everything but the app: the base layer and image/ without image/kiosk-audio>
+KIOSK_RELEASE_OS=<names everything but the app: the base layer and image/>
 ```
 
-It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `pi/kiosk-audio` (without its tests) with its
-`node_modules` (installed from [kiosk-audio/package-lock.json](kiosk-audio/package-lock.json)) at
+It drops in the built artefacts: the web app at `/opt/the-max-mix/app`, `server/src` (without its tests) with its
+`node_modules` (installed from [server/package-lock.json](../server/package-lock.json)) at
 `/opt/the-max-mix/kiosk-audio`. Spotify Soloist is not in the image: its terms do not allow passing it
 on, and each build expires after 90 days, so `kiosk-soloist-update.timer` fetches it onto `/data/soloist`, where
 `/usr/local/bin/soloist` links (the build makes the link).

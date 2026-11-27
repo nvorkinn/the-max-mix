@@ -509,7 +509,7 @@ export function useSpotifyPlayer(): UseSpotifyPlayer {
         // that nor the disconnect it causes is reported unless it lasts.
         setPlayerError(null);
         signInTimer = setTimeout(() => {
-          // The name Soloist reported, which kiosk-audio picks for each kiosk (pi/kiosk-audio/soloist.ts).
+          // The name Soloist reported, which kiosk-audio picks for each kiosk (server/src/soloist.ts).
           const device = playerRef.current?.deviceName ?? undefined;
           setPlayerError({
             message: `To sign the kiosk in, pick ${device ?? 'it'} in Spotify on your phone.`,

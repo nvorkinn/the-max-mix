@@ -39,7 +39,7 @@ tzdata
 libnss-myhostname
 
 # NetworkManager (polkit lets the kiosk user manage connections), and the DHCP and DNS it runs for the setup hotspot
-# (pi/kiosk-audio/hotspot.ts)
+# (server/src/hotspot.ts)
 network-manager
 dnsmasq-base
 polkitd

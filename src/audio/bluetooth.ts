@@ -1,4 +1,4 @@
-// Bluetooth speakers on the kiosk. The Pi's audio service (pi/kiosk-audio/bluetooth.ts) pairs and connects them over
+// Bluetooth speakers on the kiosk. The Pi's audio service (server/src/bluetooth.ts) pairs and connects them over
 // http://127.0.0.1; once one is connected it is an audio output like an AirPlay speaker (see airplay.ts).
 import { errorMessage } from '../utils/errorMessage';
 import { KIOSK_SERVICE } from '../utils/kioskService';

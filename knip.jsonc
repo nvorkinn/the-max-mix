@@ -5,16 +5,16 @@
   // Files those do not reach directly (scripts/*.ts) are entries via package.json scripts.
   // ShellCheck and editorconfig-checker are system binaries installed separately (apt/brew/CI download), not npm dependencies.
   // The Pi's services are started by their systemd units (image/rootfs): kiosk-audio, the updater, the health check,
-  // RAUC's boot backend and the first-boot setup. The updater runs screen-mode.ts itself. pi/tools/*.mts are run by hand
+  // RAUC's boot backend and the first-boot setup. The updater runs screen-mode.ts itself. scripts/pi/*.mts are run by hand
   // on a Pi over SSH.
   "entry": [
-    "pi/kiosk-audio/kiosk-audio.ts",
-    "pi/kiosk-audio/screen-mode.ts",
-    "pi/kiosk-audio/kiosk-update.ts",
-    "pi/kiosk-audio/kiosk-health.ts",
-    "pi/kiosk-audio/rauc-backend.ts",
-    "pi/kiosk-audio/kiosk-first-boot.ts",
-    "pi/tools/*.mts"
+    "server/src/kiosk-audio.ts",
+    "server/src/screen-mode.ts",
+    "server/src/kiosk-update.ts",
+    "server/src/kiosk-health.ts",
+    "server/src/rauc-backend.ts",
+    "server/src/kiosk-first-boot.ts",
+    "scripts/pi/*.mts"
   ],
   // The countdown-api submodule is its own project; the app only imports its types and generated client.
   "ignore": ["vendor/**"],

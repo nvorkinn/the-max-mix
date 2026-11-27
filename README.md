@@ -79,7 +79,7 @@ or Spotify moves playback to a Connect speaker. **AirPlay** keeps playback on th
 to the AirPlay speakers you pick (Sonos included), several at once, through PipeWire. The AirPlay speakers stay disabled
 until this tablet is the device that is playing, so choose This tablet first. The speakers are the audio
 AirPlay sinks PipeWire made; picking them asks the Pi's local
-[audio service](pi/kiosk-audio/README.md) (127.0.0.1, answering only the app) to route the sound.
+[audio service](server/README.md) (127.0.0.1, answering only the app) to route the sound.
 
 ### Wi-Fi from any phone (hotspot)
 
@@ -88,7 +88,7 @@ starts a temporary Wi-Fi network and shows two QR codes. Scan the first with the
 opens a page by itself (or scan the second code) where you choose your Wi-Fi and type its password on the phone. The
 kiosk joins it, and the tablet shows the new network. The hotspot replaces the kiosk's current Wi-Fi while it is up, ends by
 itself after 10 minutes, and shows its own random password under the first code. How it works is in
-[pi/kiosk-audio](pi/kiosk-audio/README.md).
+[server](server/README.md).
 
 ### Wi-Fi from a QR code (camera)
 
@@ -96,7 +96,7 @@ On a kiosk whose screen has a camera, Settings > Wi-Fi has a **Scan code** butto
 is on no network. Show the Wi-Fi's QR code on a phone (its Wi-Fi settings share the network as one) and hold it up to
 the camera: the tablet shows what the camera sees, reads the code and joins the network, a hidden one too, with nothing
 to type. The Pi's service reads the camera with `rpicam-vid` and the page reads the code out of the picture
-([pi/kiosk-audio](pi/kiosk-audio/README.md)); the camera is on only while that dialog is open.
+([server](server/README.md)); the camera is on only while that dialog is open.
 
 ### Bluetooth speakers
 
@@ -104,7 +104,7 @@ On the kiosk, the Speakers drawer has a Bluetooth section below AirPlay. Put the
 speakers**, then **Pair** next to it; **Forget** removes it. A connected speaker is listed with the AirPlay speakers
 above, where you pick it and set its volume. Like AirPlay it plays what this tablet plays, so choose This tablet first,
 and it plays to one Bluetooth speaker at a time. It reconnects by itself when it is switched on again. The kiosk
-service does the pairing ([pi/kiosk-audio](pi/kiosk-audio/README.md)).
+service does the pairing ([server](server/README.md)).
 
 ### Native Spotify Jam limitations
 
@@ -128,14 +128,14 @@ Settings.
 
 Tap the artwork (the microphone button in its corner) to show the current song's lyrics in place of the artwork; tap the
 picture button to bring the artwork back. The choice is remembered. Lyrics come from the kiosk service (`GET /lyrics`,
-see [pi/kiosk-audio](pi/kiosk-audio/README.md)), which asks [LRCLIB](https://lrclib.net) (a free, open lyrics database),
+see [server](server/README.md)), which asks [LRCLIB](https://lrclib.net) (a free, open lyrics database),
 Musixmatch, NetEase Cloud Music, QQ Music and KuGou; the app itself asks no lyrics site, so off the kiosk there are no
 lyrics. All five can time each word, which lights the words up as they are sung: the service asks every one of them for
 word-timed lyrics before it settles for line-timed ones, and for plain ones only when no source has synced lyrics.
 Time-synced lyrics follow playback and keep the current line in the middle. Scrolling them pauses that, and they follow
 the song again after 8 seconds of being left alone. Songs with only plain lyrics show them unsynced. Lookups happen only
 while the lyrics are shown, once per track. Another source can be added as a `LyricsSource`
-(`pi/kiosk-audio/lyrics-sources.ts`) in the `SOURCES` list in `pi/kiosk-audio/lyrics.ts`.
+(`server/src/lyrics-sources.ts`) in the `SOURCES` list in `server/src/lyrics.ts`.
 
 Spotify's own lyrics are not used: they come from an internal endpoint that is not part of the public Web API, needs
 a signed-in web-player cookie (`sp_dc`) and a server to call it, and is against Spotify's terms.
@@ -163,7 +163,7 @@ the app on the GitHub runner, joins the tailnet and copies `dist/` to the server
 `/srv/releases/the-max-mix/<commit>`, and then points `/srv/sites/the-max-mix` at it, which
 [home-stack](https://github.com/nvorkinn/home-stack)'s Caddy serves as `https://the-max-mix.countdown.build` (its DNS
 record is in countdown-server's `infra/cloudflare`). The same build goes into the release's Pi update bundle, and each kiosk
-serves its own copy (pi/kiosk-audio, "The web app"). A merge to `main` does not change production.
+serves its own copy (server, "The web app"). A merge to `main` does not change production.
 
 Set it up once:
 
@@ -241,7 +241,7 @@ playback state and controls, not the browser player's local state.
 ## Sonos
 
 On the kiosk, the Speakers drawer lists the Sonos rooms on the home network under Spotify Connect, found by the Pi
-(`pi/kiosk-audio/sonos.ts`) with the [sonos-ts](https://sonos-ts.svrooij.io) library. Spotify will not move its playback
+(`server/src/sonos.ts`) with the [sonos-ts](https://sonos-ts.svrooij.io) library. Spotify will not move its playback
 to a Sonos, so tapping a room has the Pi start the song on screen there, from the point it had reached and with Spotify's
 queue after it, through the Spotify account linked in the Sonos app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
 and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
@@ -294,7 +294,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
 The kiosk opens the app with `?kiosk=1` (remembered across the Spotify sign-in redirect; `?kiosk=0` forgets it), which
 adds kiosk-only entries to Settings: **Wi-Fi** (the networks in range, and joining one; it opens by itself when the kiosk starts with no network), the release the Pi runs and whether
 a newer one is out, **Update now** (which opens the update console), **Restart kiosk**, **Reboot Pi**, **Screen sleep**, **Quiet hours** and, on a panel whose backlight the Pi can set (a DSI panel), **Brightness**. These go through the Pi's
-[local service](pi/kiosk-audio/README.md).
+[local service](server/README.md).
 
 Left alone with nothing playing, the kiosk switches to the Dashboard after a minute. Five minutes later it dims the
 Dashboard: on a panel with a backlight the Pi can set it turns the backlight down to under a third of the **Brightness**

@@ -14,7 +14,7 @@
 #                                         in nothing else: the-max-mix.app.tar.gz, and the-max-mix.app.json, which
 #                                         names it, with its signature by the same key (the-max-mix.app.json.sig).
 #                                         <artefacts> holds app/ (the built web app) and
-#                                         kiosk-audio/ (pi/kiosk-audio with its node_modules); <ref> is the tag or the
+#                                         kiosk-audio/ (server/src with its node_modules); <ref> is the tag or the
 #                                         channel (dev, branch-<name>). Nothing is compiled here.
 #   build.sh card <the-max-mix.raucb> <out>
 #                                         a promotion: that bundle's slot images, unchanged, on a six-partition card
@@ -27,7 +27,7 @@ set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd "$here/.." && pwd)
 
-# The card's partitions (pi/kiosk-audio/boot-slots.ts numbers the boot ones; rootfs/etc/rauc/system.conf names them).
+# The card's partitions (server/src/boot-slots.ts numbers the boot ones; rootfs/etc/rauc/system.conf names them).
 AUTOBOOT_MIB=32
 BOOT_MIB=256
 # Room to grow: the Pi 5 spike filled a 4 GiB slot once the base image's 1 GiB swap file and the apt cache were added
@@ -282,13 +282,13 @@ vfat_image() {
 }
 
 # Names everything in a bundle but the app (/opt/the-max-mix) and release.env: the base layer and what the build reads
-# from image/ (image/kiosk-audio lists the app's packages, so it is the app's). Two builds with the same answer differ
-# only in the app, and a Pi that runs one can take the other's app alone (pi/kiosk-audio/image-update.ts).
+# from image/. Two builds with the same answer differ only in the app, and a Pi that runs one can take the other's app
+# alone (server/src/image-update.ts).
 os_fingerprint() {
   local base_tar=$1
   {
     sha256sum < "$base_tar"
-    git -c safe.directory="$repo" -C "$repo" ls-tree -r HEAD -- image | grep -v $'\timage/kiosk-audio/'
+    git -c safe.directory="$repo" -C "$repo" ls-tree -r HEAD -- image
   } | sha256sum | cut -d' ' -f1
 }
 

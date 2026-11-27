@@ -134,7 +134,7 @@ is never updated from BlueZ afterwards: BlueZ renames a device from any advert c
 advertise as anything. The Classic pairing also gives BlueZ the phone's LE identity key, which lets it recognise the
 phone's changing LE addresses later. **Forget** on a device row (`POST /bluetooth/remove`) unpairs it and drops it from
 `phones.json`, so a phone can pair again. The adapter's Alias is THE MAX MIX (set at start-up), which is what the phone's
-pairing prompt shows. This was checked on the-max-mix-2 with `pi/tools/bt-probe.mts` before it was built.
+pairing prompt shows. This was checked on the-max-mix-2 with `scripts/pi/bt-probe.mts` before it was built.
 
 `presence.ts` scans Bluetooth LE (an LE-only discovery filter on hci0) only while the app's person switcher is open
 (`POST /bluetooth/presence`), for two minutes at most, and never with no phone saved. It counts a saved phone as here
@@ -292,7 +292,7 @@ The service's own error messages stay in English in the code; the app shows them
 | `pipewire.ts`      | `pw-dump` parsing, the link plan, `pw-link` and `wpctl set-volume`.     |
 
 It is TypeScript that Node runs directly, so the image build copies the `.ts` files as they are and nothing is built.
-Its npm packages are installed with `npm ci` from `image/kiosk-audio/package-lock.json` (so only the reviewed versions;
+Its npm packages are installed with `npm ci` from `server/package-lock.json` (so only the reviewed versions;
 Dependabot watches that lockfile). That needs Node 22.18 or later, so the image has Node 24 (as in `.nvmrc`) from
 NodeSource's archive, since Debian trixie has Node 20.
 
@@ -375,5 +375,5 @@ State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` 
 
 ## Tests
 
-The Vitest suite (`npm test`) includes `pi/kiosk-audio/*.test.ts`, with `pw-dump` replies stubbed. It is type-checked
+The Vitest suite (`npm test`) includes `server/src/*.test.ts`, with `pw-dump` replies stubbed. It is type-checked
 and linted with the repository's tooling rules (`tsconfig.node.json`).

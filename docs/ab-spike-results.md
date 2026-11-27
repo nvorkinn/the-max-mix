@@ -2,7 +2,7 @@
 
 Chunk 0 of the image-based A/B update plan, run on 2026-11-24 on the-max-mix-4 (Raspberry Pi 5, 8 GB, Touch Display 2)
 with a spare 64 GB card; the Pi's own card was not touched. The probe is
-[`pi/tools/ab-probe.mts`](../pi/tools/ab-probe.mts). It builds a test card in an arm64 Debian container on a Mac, from
+[`scripts/pi/ab-probe.mts`](../scripts/pi/ab-probe.mts). It builds a test card in an arm64 Debian container on a Mac, from
 the published flash image re-laid out as the plan's six partitions with RAUC added, and drives the Pi over SSH. Slot A
 ran that spike system; slot B then got main's real image (`dev` bundle, main 96f7f4b), installed by RAUC from slot A,
 and from then on the two slots took turns with #674's builds. The last round ran end to end with no help: `kiosk-update

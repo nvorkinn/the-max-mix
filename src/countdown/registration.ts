@@ -121,7 +121,7 @@ export function finishSetup(): void {
   }
 }
 
-/** The Pi's screen, as the kiosk's service reads it from the kernel (pi/kiosk-audio/screen.ts). */
+/** The Pi's screen, as the kiosk's service reads it from the kernel (server/src/screen.ts). */
 export type KioskScreen = Pick<TouchscreenRegistration, 'width' | 'height' | 'brightness_control'>;
 
 /** The screen as the Pi reports it (GET /screen), or null when the Pi cannot say. */

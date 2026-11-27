@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Check, LoaderCircle } from 'lucide-react';
-import { wifiQrText } from '../../../pi/kiosk-audio/qr';
+import { wifiQrText } from '../../../server/src/qr';
 import { useLanguage } from '../../i18n/language';
 import { useT } from '../../i18n/translate';
 import type { StringId } from '../../i18n/strings';

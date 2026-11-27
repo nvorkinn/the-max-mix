@@ -85,7 +85,7 @@ export const AREAS: Area[] = [
       /^src\/components\/Update(Prompt|Console)/,
       /^src\/hooks\/useKioskUpdate/,
       /^src\/utils\/kiosk(Service)?\.ts$/,
-      /^pi\/kiosk-audio\/update/
+      /^server\/src\/update/
     ]
   },
   {

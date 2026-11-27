@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run by kiosk-app.service at each boot: points /run/the-max-mix/app at the app this boot uses (the web app and
 # kiosk-audio). That is the one the image has at /opt/the-max-mix, unless a release that changed only the app was put
-# on /data since (pi/kiosk-audio/image-update.ts): /data/the-max-mix/apps/current, when its `over` file names this
+# on /data since (server/src/image-update.ts): /data/the-max-mix/apps/current, when its `over` file names this
 # slot's own release. So a newly installed slot starts with its own app, and the slot it replaced finds its app again
 # after a rollback. A `trial` file means the Pi went down while a new app was still being tried: that one is not
 # trusted, so the one before it (`previous`) runs, and kiosk-health settles the rest.

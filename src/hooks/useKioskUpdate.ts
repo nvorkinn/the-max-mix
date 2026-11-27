@@ -9,7 +9,7 @@ import type { ImageUpdateCheck } from '../utils/kioskService';
 const GIVE_UP_MS = 20 * 60 * 1000;
 /** The console keeps the newest lines only. */
 const MAX_LINES = 500;
-/** Logged by the Pi's updater (pi/kiosk-audio/image-update.ts) as RAUC installs. */
+/** Logged by the Pi's updater (server/src/image-update.ts) as RAUC installs. */
 const INSTALL_PROGRESS = /Update progress: (\d+)%/;
 /** How long the percentage may stand still before the bar shows only that the install is still at work. */
 export const STALLED_AFTER_MS = 8000;

@@ -61,7 +61,7 @@ interface ScannedNetwork {
 
 /** Stands in for a name in a line (the kiosk's, a network's), which is then set in bold where it stood. */
 const DEVICE_MARK = '\u{E000}';
-/** What a kiosk's player is called in Spotify until the Pi's service has said (pi/kiosk-audio/soloist.ts). */
+/** What a kiosk's player is called in Spotify until the Pi's service has said (server/src/soloist.ts). */
 const KIOSK_NAME = 'The Max Mix';
 
 const reloadPage = () => location.reload();

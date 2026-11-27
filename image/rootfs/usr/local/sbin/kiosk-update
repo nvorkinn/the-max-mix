@@ -1,4 +1,4 @@
 #!/bin/sh
 # THE MAX MIX's updater: kiosk-update run | check | apply | restart | rollback | boot-config
-# (pi/kiosk-audio/kiosk-update.ts).
+# (server/src/kiosk-update.ts).
 exec /usr/local/lib/the-max-mix/app-node kiosk-update.ts "$@"

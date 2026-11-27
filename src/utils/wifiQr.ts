@@ -1,5 +1,5 @@
 // Reads the text of a Wi-Fi QR code, the kind a phone shows to share its network (WIFI:T:WPA;S:name;P:password;;),
-// so the kiosk can join the network held up to its camera. pi/kiosk-audio/qr.ts writes the same format for the hotspot.
+// so the kiosk can join the network held up to its camera. server/src/qr.ts writes the same format for the hotspot.
 
 /** The network a Wi-Fi QR code names. `unsupported` is one the kiosk cannot join (WEP, or a company sign-in). */
 export interface WifiQr {

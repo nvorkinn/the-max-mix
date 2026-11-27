@@ -7,7 +7,7 @@ import PersonFace from './PersonFace';
 import PhonePairingView, { PairPhoneSteps } from './PhonePairingView';
 
 /**
- * Pairs a person's phone with the kiosk (pi/kiosk-audio/phone-pairing.ts). It first has them open Settings › Bluetooth
+ * Pairs a person's phone with the kiosk (server/src/phone-pairing.ts). It first has them open Settings › Bluetooth
  * on the phone, and the Pi only starts looking once that is OK'd, so the phone is listening for the whole scan. While
  * the sheet is looking, the phone shows up in the list under its own name. Tapping it pairs: the phone asks to
  * accept the code shown here too, and the phone is linked to that person (linkPhone), so the switcher knows when they

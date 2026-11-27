@@ -1,4 +1,4 @@
-// What the Pi's Bluetooth adapter reports, for the debug console (pi/kiosk-audio/bluetooth-monitor.ts): the adapter, the
+// What the Pi's Bluetooth adapter reports, for the debug console (server/src/bluetooth-monitor.ts): the adapter, the
 // devices paired with it, how many unpaired ones are nearby, and a log of what changed.
 import { errorMessage } from './errorMessage';
 import { KIOSK_SERVICE } from './kioskService';
@@ -32,7 +32,7 @@ interface NearbyDevice {
   name: string;
 }
 
-/** Where pairing a phone is (pi/kiosk-audio/phone-pairing.ts). */
+/** Where pairing a phone is (server/src/phone-pairing.ts). */
 export type PairingStatus =
   | { state: 'idle' }
   | { state: 'scanning'; secondsLeft: number; nearby: NearbyDevice[] }
@@ -40,7 +40,7 @@ export type PairingStatus =
   | { state: 'paired'; name: string; address: string }
   | { state: 'failed'; error: string };
 
-/** A phone "Pair my phone" saved, and whether the Pi heard it lately (pi/kiosk-audio/presence.ts). */
+/** A phone "Pair my phone" saved, and whether the Pi heard it lately (server/src/presence.ts). */
 interface PhonePresence {
   address: string;
   name: string;

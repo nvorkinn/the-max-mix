@@ -25,7 +25,7 @@ updates:
 
   # The kiosk-audio service's packages on the Pi: the image build installs them from this lockfile (npm ci).
   - package-ecosystem: npm
-    directory: /image/kiosk-audio
+    directory: /server
     patterns: ['*']
     multi-ecosystem-group: dependencies
 

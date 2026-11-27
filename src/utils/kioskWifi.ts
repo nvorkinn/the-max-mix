@@ -1,9 +1,9 @@
-// The kiosk's Wi-Fi, through its service (pi/kiosk-audio/server.ts): the networks in range, and joining one. The service
+// The kiosk's Wi-Fi, through its service (server/src/server.ts): the networks in range, and joining one. The service
 // only lets its own origin change the network, which is the app's once the Pi serves it. Its messages come in English;
 // `localize` (words.ts, the service's own catalogue) says them in the tablet's language.
 
-import { localize } from '../../pi/kiosk-audio/words';
-import type { Language } from '../../pi/kiosk-audio/words';
+import { localize } from '../../server/src/words';
+import type { Language } from '../../server/src/words';
 import { KIOSK_SERVICE } from './kioskService';
 
 /** A network in range, as the service lists it: how strong (0 to 4 bars) and whether it needs a password. */

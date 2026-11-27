@@ -1,5 +1,5 @@
 // The tablet's speaker outputs on the kiosk: AirPlay speakers and connected Bluetooth speakers. PipeWire makes an output
-// for each; the kiosk's audio service (pi/kiosk-audio/server.ts) lists them over http://127.0.0.1 and routes the sound
+// for each; the kiosk's audio service (server/src/server.ts) lists them over http://127.0.0.1 and routes the sound
 // to the chosen ones (POST /audio/route). It also says which ones the sound really goes to (`linked`). A Pi still on an
 // older service lists names only and cannot say where the sound goes, so the page remembers its own last choice.
 import { errorMessage } from '../utils/errorMessage';

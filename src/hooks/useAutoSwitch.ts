@@ -11,7 +11,7 @@ import type { SavedPhone } from './useSavedPhones';
 const ASLEEP_CHECK_MS = 5 * 60_000;
 /** How often a check re-reads what the Pi hears. */
 const READ_STEP_MS = 1000;
-/** The longest a check waits for the Pi to finish its first seconds of listening (pi/kiosk-audio/presence.ts). */
+/** The longest a check waits for the Pi to finish its first seconds of listening (server/src/presence.ts). */
 const CHECK_LIMIT_MS = 15_000;
 
 /**

@@ -25,4 +25,4 @@ jobs:
       - run: npm audit --audit-level=moderate
       # The kiosk-audio service is npm code that runs on the Pi, with its own lockfile.
       - run: npm audit --audit-level=moderate
-        working-directory: image/kiosk-audio
+        working-directory: server

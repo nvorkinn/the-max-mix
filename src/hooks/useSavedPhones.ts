@@ -5,7 +5,7 @@ import { readBluetoothReport, watchPresence } from '../utils/bluetoothMonitor';
 const POLL_MS = 30_000;
 /** How often presence is re-read while the Pi listens: a phone is usually heard within a second or two. */
 const WATCH_POLL_MS = 1000;
-/** The Pi stops listening two minutes after it was asked (pi/kiosk-audio/presence.ts), so it is asked again before. */
+/** The Pi stops listening two minutes after it was asked (server/src/presence.ts), so it is asked again before. */
 const REWATCH_MS = 60_000;
 
 export interface SavedPhone {

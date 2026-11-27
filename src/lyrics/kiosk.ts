@@ -1,4 +1,4 @@
-// Lyrics from the kiosk's own service, which is where every lyrics source is asked (pi/kiosk-audio/lyrics.ts): LRCLIB,
+// Lyrics from the kiosk's own service, which is where every lyrics source is asked (server/src/lyrics.ts): LRCLIB,
 // Musixmatch, NetEase, QQ Music and KuGou. The service answers with synced lyrics as LRC text, with plain lyrics, or
 // that the song is instrumental.
 import { KIOSK_SERVICE } from '../utils/kioskService';
