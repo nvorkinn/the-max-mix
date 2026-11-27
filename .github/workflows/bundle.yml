@@ -88,12 +88,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The runner's own package lists usually still have these, so `apt-get update` runs only when they do not. The
-      # man page index is not rebuilt for them.
+      # The runner's own package lists usually still have these, so `apt-get update` runs only when they do not. Nor
+      # does needrestart look for services to restart on a runner that is thrown away.
       - name: Install the build tools
         run: |
-          sudo rm -f /var/lib/man-db/auto-update
-          install() { sudo apt-get install --yes --no-install-recommends rauc dosfstools mtools e2fsprogs zstd jq; }
+          install() {
+            sudo env NEEDRESTART_SUSPEND=1 apt-get install --yes --no-install-recommends rauc dosfstools mtools e2fsprogs zstd jq
+          }
           install || { sudo apt-get update -q && install; }
       # The base layer's inputs: the newest Raspberry Pi OS Lite, the package list and its archives, the build script,
       # and the week, so that security updates reach the next bundle within seven days.
