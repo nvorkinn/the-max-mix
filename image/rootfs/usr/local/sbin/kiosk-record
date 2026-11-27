@@ -45,7 +45,7 @@ rotation=$(sed -n 's/^KIOSK_SCREEN_ROTATION=//p' /run/kiosk/screen.env 2>/dev/nu
 filters=()
 case $rotation in
   90) filters=(-F transpose=clock) ;;
-  180) filters=(-F hflip,vflip) ;;
+  180) filters=(-F 'hflip,vflip') ;;
   270) filters=(-F transpose=cclock) ;;
 esac
 
