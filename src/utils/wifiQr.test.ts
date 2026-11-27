@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wifiQrText } from '../../server/src/qr';
+import { wifiQrText } from '../../shared/src/wifi-qr';
 import { parseWifiQr } from './wifiQr';
 
 describe('parseWifiQr', () => {

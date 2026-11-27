@@ -10,10 +10,10 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { createServer as createListener } from 'node:net';
 import type { Socket } from 'node:net';
+import { LOCALES, preferredLanguage, say } from '../../shared/src/words.ts';
+import type { Language, WordId } from '../../shared/src/words.ts';
 import { parseConnectRequest } from './nmcli.ts';
 import type { ConnectRequest, Network } from './nmcli.ts';
-import { LOCALES, preferredLanguage, say } from './words.ts';
-import type { Language, WordId } from './words.ts';
 
 const PORTS = [80, 8080];
 const MAX_BODY = 4096;

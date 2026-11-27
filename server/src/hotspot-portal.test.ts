@@ -5,6 +5,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Socket } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { say } from '../../shared/src/words.ts';
 import { exchange } from './fixtures.ts';
 import {
   handlePortalRequest,
@@ -16,7 +17,6 @@ import {
 } from './hotspot-portal.ts';
 import type { Portal } from './hotspot-portal.ts';
 import type { ConnectRequest } from './nmcli.ts';
-import { say } from './words.ts';
 
 const NETWORKS = [
   { ssid: 'Home', signal: 80, bars: 4, security: 'psk' as const },

@@ -63,14 +63,15 @@ jobs:
       - name: Build the web app
         run: npm run build
       # The server's packages are plain JavaScript, so they install on this x86 runner for the Pi.
-      - name: Pack the web app and the server
+      - name: Pack the web app, the server and what they share
         run: |
           out=$RUNNER_TEMP/artefacts
-          mkdir -p "$out/server/src"
+          mkdir -p "$out/server/src" "$out/shared/src"
           cp -r dist "$out/app"
           git ls-files -z server/src | grep -zv -e '\.test\.ts$' -e '/imager-fixtures/' -e '/fixtures\.ts$' \
             | xargs -0 cp --target-directory="$out/server/src"
           cp server/package.json server/package-lock.json "$out/server/"
+          git ls-files -z shared/src | grep -zv -e '\.test\.ts$' | xargs -0 cp --target-directory="$out/shared/src"
           (cd "$out/server" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
           tar --create --zstd --file="$RUNNER_TEMP/artefacts.tar.zst" --directory="$out" .
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

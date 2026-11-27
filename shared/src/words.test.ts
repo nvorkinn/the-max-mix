@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ERRORS } from './nmcli.ts';
 import { localize, preferredLanguage, say } from './words.ts';
 
-describe('server/words', () => {
+describe('shared/words', () => {
   it('fills in the arguments, and leaves a placeholder it has no argument for', () => {
     expect(say('error.couldNotJoin', 'en', { ssid: 'Home', error: 'Nope.' })).toBe('Could not join Home: Nope.');
     expect(say('error.couldNotJoin', 'en', { ssid: 'Home' })).toBe('Could not join Home: {error}');
@@ -23,11 +22,8 @@ describe('server/words', () => {
     expect(preferredLanguage()).toBe('en');
   });
 
-  it('knows every message the Wi-Fi service sends, so the app can show it in Norwegian', () => {
-    for (const message of Object.values(ERRORS)) {
-      expect(localize(message, 'nb'), message).not.toBe(message);
-      expect(localize(message, 'en')).toBe(message);
-    }
+  it('puts a message it knows into Norwegian, and leaves any other as it is', () => {
+    expect(localize('Could not connect.', 'nb')).toBe(say('error.generic', 'nb'));
     expect(localize('Could not join Home: Bar: Could not connect.', 'nb')).toBe(
       say('error.couldNotJoin', 'nb', { ssid: 'Home: Bar', error: say('error.generic', 'nb') })
     );

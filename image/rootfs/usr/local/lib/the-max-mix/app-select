@@ -16,7 +16,7 @@ slot="$(value KIOSK_RELEASE_REF)+$(value KIOSK_RELEASE_COMMIT)"
 # Prints the folder $apps/$1 links to, when it holds an app put over this slot's release.
 layered() {
   dir=$(readlink -f "$apps/$1" 2> /dev/null) || return 1
-  [ -f "$dir/server/src/kiosk-server.ts" ] && [ -d "$dir/app" ] || return 1
+  [ -f "$dir/server/src/kiosk-server.ts" ] && [ -d "$dir/shared/src" ] && [ -d "$dir/app" ] || return 1
   [ "$(cat "$dir/over" 2> /dev/null)" = "$slot" ] || return 1
   echo "$dir"
 }

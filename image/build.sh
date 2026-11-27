@@ -13,9 +13,9 @@
 #                                         Beside it, the app on its own for a Pi whose slot differs from this bundle
 #                                         in nothing else: the-max-mix.app.tar.gz, and the-max-mix.app.json, which
 #                                         names it, with its signature by the same key (the-max-mix.app.json.sig).
-#                                         <artefacts> holds app/ (the built web app) and
-#                                         server/ (package.json, node_modules, src/); <ref> is the tag or the
-#                                         channel (dev, branch-<name>). Nothing is compiled here.
+#                                         <artefacts> holds app/ (the built web app), server/ (package.json,
+#                                         node_modules, src/) and shared/ (src/); <ref> is the tag or the channel
+#                                         (dev, branch-<name>). Nothing is compiled here.
 #   build.sh card <the-max-mix.raucb> <out>
 #                                         a promotion: that bundle's slot images, unchanged, on a six-partition card
 #                                         -> <out>/the-max-mix.img.zst and the-max-mix.rpi-imager-manifest
@@ -185,6 +185,7 @@ assemble() {
   install -d -m 0755 "$root/opt/the-max-mix"
   cp -r "$artefacts/app" "$root/opt/the-max-mix/app"
   cp -r "$artefacts/server" "$root/opt/the-max-mix/server"
+  cp -r "$artefacts/shared" "$root/opt/the-max-mix/shared"
   chown -R root:root "$root/opt/the-max-mix"
   chmod -R u=rwX,go=rX "$root/opt/the-max-mix"
 
@@ -344,7 +345,7 @@ EOF
   step "Packing the app on its own"
   local app=$out/the-max-mix.app
   tar --create --gzip --sort=name --numeric-owner --owner=0 --group=0 --mtime="@$SOURCE_DATE_EPOCH" \
-    --file="$app.tar.gz" --directory="$root/opt/the-max-mix" app server \
+    --file="$app.tar.gz" --directory="$root/opt/the-max-mix" app server shared \
     --directory="$root/usr/lib/the-max-mix" release.env
   jq --null-input --arg version "$version" --arg os "$os" \
     --arg sha256 "$(sha256sum < "$app.tar.gz" | cut -d' ' -f1)" --argjson size "$(stat --format=%s "$app.tar.gz")" \

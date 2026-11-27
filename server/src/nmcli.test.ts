@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
+import { localize } from '../../shared/src/words.ts';
 import {
   classifySecurity,
   ERRORS,
@@ -105,6 +106,15 @@ describe('friendlyError', () => {
     [1, 'something else', ERRORS.generic]
   ])('maps exit %i "%s"', (code, text, expected) => {
     expect(friendlyError(code, text)).toBe(expected);
+  });
+});
+
+describe('the messages', () => {
+  it('are all in the shared words, so the app can show them in Norwegian', () => {
+    for (const message of Object.values(ERRORS)) {
+      expect(localize(message, 'nb'), message).not.toBe(message);
+      expect(localize(message, 'en')).toBe(message);
+    }
   });
 });
 

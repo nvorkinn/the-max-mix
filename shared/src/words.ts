@@ -1,7 +1,7 @@
-// The words of this service, in English and Norwegian Bokmål: the hotspot's page for a phone (hotspot-portal.ts), which
-// follows the phone's language, and the service's own messages. The app has its own catalogue (src/i18n); this service
-// ships to the Pi on its own, so it keeps this small one. The app imports it too (src/utils/kioskWifi.ts, for
-// `localize`), so it imports nothing.
+// The words of the Pi's server, in English and Norwegian Bokmål: the hotspot's page for a phone
+// (server/src/hotspot-portal.ts), which follows the phone's language, and the server's own messages. The app has its own
+// catalogue (src/i18n); the server ships to the Pi without it, so it keeps this small one. The app imports it too
+// (src/utils/kioskWifi.ts, for `localize`), so it imports nothing.
 // `{name}` in a text is filled in from `say`'s arguments.
 
 /** English (en) or Norwegian Bokmål (nb), as the app's config names them. */
