@@ -9,8 +9,9 @@ xkb-data
 # Screen sleep: swayidle notices when nobody touches the screen, wlr-randr turns the output off and on (kiosk-display).
 swayidle
 wlr-randr
-# Screenshots over SSH (kiosk-screenshot): grim asks Cage for the screen.
+# Screenshots and videos over SSH (kiosk-screenshot, kiosk-record): grim and wf-recorder ask Cage for the screen.
 grim
+wf-recorder
 fonts-dejavu-core
 fonts-noto-color-emoji
 

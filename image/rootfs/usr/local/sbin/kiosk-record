@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Writes an MP4 (H.264) of what the touchscreen shows to standard output, recorded by wf-recorder from Cage (the same
+# screencopy grim uses for kiosk-screenshot), so it works whatever app Cage runs. Usage:
+#   sudo kiosk-record [SECONDS] > screen.mp4      SECONDS: 1 to 120, 10 if left out
+# From your computer, `npm run kiosk-record -- <host> [seconds]` runs this over SSH and saves the MP4
+# (scripts/kiosk-record.ts).
+# A frame is taken each time Cage draws one, so the video's frame times are the screen's own, and a stutter shows as a
+# frame that stays up too long. The Pi's hardware H.264 encoder does the work where there is one (Pi 4); elsewhere (Pi 5
+# has none) libx264 does, at low priority on two threads, so the recording takes as little as it can from Chromium.
+set -euo pipefail
+
+kiosk_user=${KIOSK_USER:-kiosk}
+seconds=${1:-10}
+if ((EUID != 0)); then
+  echo "kiosk-record: run it with sudo (Cage's Wayland socket belongs to the $kiosk_user user)." >&2
+  exit 1
+fi
+if [[ ! $seconds =~ ^[0-9]+$ ]] || ((10#$seconds < 1 || 10#$seconds > 120)); then
+  echo "kiosk-record: record for 1 to 120 seconds: sudo kiosk-record [SECONDS] > screen.mp4" >&2
+  exit 2
+fi
+seconds=$((10#$seconds))
+if [[ -t 1 ]]; then
+  echo "kiosk-record: send the MP4 to a file: sudo kiosk-record [SECONDS] > screen.mp4" >&2
+  exit 2
+fi
+
+uid=$(id -u "$kiosk_user")
+runtime=/run/user/$uid
+# Cage names its socket wayland-0 unless that is taken; take the one there is.
+socket=
+for candidate in "$runtime"/wayland-[0-9]*; do
+  [[ -S $candidate ]] || continue
+  socket=${candidate##*/}
+  break
+done
+if [[ -z $socket ]]; then
+  echo "kiosk-record: no Wayland socket in $runtime; is the kiosk running?" >&2
+  exit 1
+fi
+
+# Cage hands over the panel's own frames, before the turn kiosk-display gives a rotated screen
+# (KIOSK_SCREEN_ROTATION from screen-setup.ts), so the video is turned back the same way.
+rotation=$(sed -n 's/^KIOSK_SCREEN_ROTATION=//p' /run/kiosk/screen.env 2>/dev/null || true)
+filters=()
+case $rotation in
+  90) filters=(-F transpose=clock) ;;
+  180) filters=(-F hflip,vflip) ;;
+  270) filters=(-F transpose=cclock) ;;
+esac
+
+# The MP4 is written to a folder of its own, then sent: MP4 puts its index at the end, so it cannot be streamed as it is
+# written.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+chown "$kiosk_user" "$work"
+
+# wf-recorder as the kiosk user, stopped with Ctrl+C (SIGINT) after SECONDS so it finishes the file; timeout then ends
+# with 124.
+record() {
+  local status=0
+  rm -f "$work/screen.mp4"
+  timeout --signal=INT --kill-after=10 "$seconds" \
+    nice -n 10 runuser -u "$kiosk_user" -- env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$socket" \
+    wf-recorder --overwrite --file "$work/screen.mp4" "${filters[@]}" "$@" > "$work/log" 2>&1 || status=$?
+  [[ ($status == 0 || $status == 124) && -s $work/screen.mp4 ]]
+}
+
+hardware=no
+for name in /sys/class/video4linux/video*/name; do
+  [[ -r $name && $(< "$name") == bcm2835-codec-encode ]] && hardware=yes
+done
+software=(--codec libx264 --pixel-format yuv420p --codec-param preset=ultrafast --codec-param crf=23
+  --codec-param threads=2)
+
+if [[ $hardware == yes ]] &&
+  record --codec h264_v4l2m2m --pixel-format yuv420p --bframes 0 --codec-param b=8000000; then
+  :
+else
+  [[ $hardware == no ]] || echo "kiosk-record: the hardware encoder failed, recording again with libx264:" \
+    "$(tail -n 3 "$work/log")" >&2
+  if ! record "${software[@]}"; then
+    echo "kiosk-record: wf-recorder made no video:" >&2
+    tail -n 20 "$work/log" >&2
+    exit 1
+  fi
+fi
+cat "$work/screen.mp4"
