@@ -4194,6 +4194,126 @@ input:disabled {
   text-underline-offset: 3px;
 }
 /*
+  The Location chapter (components/setup/SetupLocation.tsx): the postcodes near the kiosk as large buttons, five across
+  on the 10" screen and four on the 7", a text box for one not listed, then the stops near it, one tap each.
+*/
+.setup-wizard-location {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  min-height: 0;
+}
+.setup-wizard-location-looking {
+  display: grid;
+  place-items: center;
+  min-height: 144px;
+}
+.setup-wizard-location-postcodes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  width: min(100%, 880px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-wizard-location-postcode {
+  width: 100%;
+  min-height: 64px;
+  padding: 0 8px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.setup-wizard-location-postcode:active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.setup-wizard-location-type {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 520px);
+}
+.setup-wizard-location-label {
+  font-size: 17px;
+  text-align: center;
+}
+.setup-wizard-location-field {
+  display: flex;
+  gap: 12px;
+}
+.setup-wizard-location-field .postcode-field {
+  flex: 1;
+}
+.setup-wizard-location-field input {
+  min-height: 60px;
+  padding: 0 16px;
+  font-size: 20px;
+  text-transform: uppercase;
+}
+.setup-wizard-location-field .button {
+  min-width: 100px;
+  min-height: 60px;
+  border-radius: 16px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.setup-wizard-location-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 640px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-wizard-location-stop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 68px;
+  padding: 8px 18px;
+  font-size: 18px;
+  text-align: left;
+}
+.setup-wizard-location-tick {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+}
+.setup-wizard-location-stop[aria-pressed='true'] .setup-wizard-location-tick {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.setup-wizard-location-tick svg {
+  width: 22px;
+  height: 22px;
+}
+.setup-wizard-location-distance {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.setup-wizard-location .countdown-search-button {
+  width: min(100%, 640px);
+}
+.setup-wizard-location-continue {
+  flex-shrink: 0;
+}
+/*
   The drawing of how an iPhone shows its Wi-Fi network as a QR code (components/setup/ShareWifiCode.tsx): a phone with its
   home screen and a tap on the Passwords app, its groups and a tap on Wi-Fi, the networks and a tap on the one it is
   on, that network's page and a tap on Show Network QR Code, and the code. Without its animations it shows the end, the

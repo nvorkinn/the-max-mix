@@ -1,6 +1,7 @@
 // cspell:ignore Drammen
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/search.json';
+import locate from '../../../vendor/countdown-api/src/countdown_api/fixtures/locate.json';
 import touchscreen from '../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import panels from '../../../vendor/countdown-api/src/countdown_api/fixtures/device_panels.json';
 import * as registration from './registration';
@@ -9,6 +10,7 @@ import {
   describeStop,
   learnStopNames,
   locatePlace,
+  nearbyStops,
   rememberStop,
   searchPlaces,
   searchStops
@@ -136,6 +138,17 @@ describe('locatePlace', () => {
     expect(new Request(...(fetch.mock.calls[0] ?? [''])).url).toBe('https://api.countdown.build/api/places/here');
   });
 
+  it('asks for the place at a position it is given, not where the browser is', async () => {
+    register();
+    const getCurrentPosition = browserAt(fixture.here_query);
+    const fetch = answer(200, fixture.here);
+    await locatePlace(locate.near_query);
+    expect(new Request(...(fetch.mock.calls[0] ?? [''])).url).toBe(
+      'https://api.countdown.build/api/places/here?latitude=51.484787&longitude=-0.091724'
+    );
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
   it('is null when there is no telling, and rejects when the server refuses', async () => {
     register();
     browserAt(null);
@@ -143,6 +156,36 @@ describe('locatePlace', () => {
     await expect(locatePlace()).resolves.toBeNull();
     answer(502, []);
     await expect(locatePlace()).rejects.toBeInstanceOf(SearchFailed);
+  });
+});
+
+describe('nearbyStops', () => {
+  it('asks for the stops near a position, nearest first, each with its letter, lines and distance', async () => {
+    register();
+    const fetch = answer(200, locate.stops_near);
+    const stops = await nearbyStops(locate.near_query);
+    const request = new Request(...(fetch.mock.calls[0] ?? ['']));
+    expect(request.url).toBe('https://api.countdown.build/api/stops/near?latitude=51.484787&longitude=-0.091724');
+    expect(request.headers.get('Authorization')).toBe(`Bearer ${SECRET}`);
+    expect(stops[0]).toEqual({
+      key: 'tfl:490014501K',
+      name: 'Westmoreland Road',
+      detail: '40, 68, 176, 468, N68',
+      letter: 'K',
+      indent: false,
+      value: { source: 'tfl', id: '490014501K' },
+      distance: 136
+    });
+    expect(stops.at(-1)).toMatchObject({ name: 'Elephant & Castle Underground Station', detail: 'Bakerloo, Northern' });
+  });
+
+  it("fails when the kiosk isn't registered, or the server can't search", async () => {
+    const fetch = answer(200, locate.stops_near);
+    await expect(nearbyStops(locate.near_query)).rejects.toBeInstanceOf(SearchFailed);
+    expect(fetch).not.toHaveBeenCalled();
+    register();
+    answer(502, []);
+    await expect(nearbyStops(locate.near_query)).rejects.toBeInstanceOf(SearchFailed);
   });
 });
 
@@ -156,6 +199,8 @@ describe('a build that mocks the server', () => {
     expect(places.map(result => result.value)).toEqual([{ location: 'Oslo', key: 'oslo-no-3143244' }]);
     const here = await locatePlace();
     expect(here?.value).toEqual({ location: 'Oslo', key: 'oslo-no-3143244' });
+    const near = await nearbyStops(locate.near_query);
+    expect(near.map(stop => stop.key)).toEqual(locate.stops_near.map(stop => `tfl:${stop.id}`));
     expect(fetch).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,9 @@ const DEVICE_ID_KEY = 'maxmix.deviceId';
 const DEVICE_ID_PATTERN = /^[\w-]{1,64}$/;
 // Set once the first-time setup wizard is done (components/setup/SetupWizard.tsx).
 const SETUP_DONE_KEY = 'maxmix.setupDone';
+// Set once the wizard's Location chapter is done or skipped. A kiosk set up before the chapter was added has the key
+// above, and never sees the wizard again.
+const LOCATION_DONE_KEY = 'maxmix.setupLocationDone';
 
 /** The kiosk's secret and the device ID the server gave it, once it is registered. */
 export interface DeviceCredentials {
@@ -58,6 +61,7 @@ export function forgetRegistration(): void {
     localStorage.removeItem(DEVICE_ID_KEY);
     localStorage.removeItem(SECRET_KEY);
     localStorage.removeItem(SETUP_DONE_KEY);
+    localStorage.removeItem(LOCATION_DONE_KEY);
   } catch {
     // Storage is unavailable, so there was nothing kept to forget.
   }
@@ -118,6 +122,20 @@ export function finishSetup(): void {
     localStorage.setItem(SETUP_DONE_KEY, '1');
   } catch {
     // Storage is unavailable: the wizard comes back at the next start, with every chapter ticked.
+  }
+}
+
+/** Whether the wizard's Location chapter is done (or was skipped). */
+export function isLocationSet(): boolean {
+  return read(LOCATION_DONE_KEY) !== null;
+}
+
+/** The wizard's Location chapter is done: the page reloading doesn't bring it back. */
+export function finishLocation(): void {
+  try {
+    localStorage.setItem(LOCATION_DONE_KEY, '1');
+  } catch {
+    // Storage is unavailable: the chapter comes back at the next start, to be skipped or done again.
   }
 }
 

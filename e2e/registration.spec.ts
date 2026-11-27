@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
-import { fakeCountdownServer } from './fake-countdown.ts';
+import { DEVICE_CONFIGS, fakeCountdownServer, locate } from './fake-countdown.ts';
 import { fakeSignedOutSoloist } from './fake-soloist.ts';
 import { PIXEL } from './fake-spotify.ts';
 
@@ -76,6 +76,14 @@ async function fakePhonePairing(page: Page) {
 
 const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
 
+/** The Wi-Fi networks the Pi sees (GET /location/scan), as its service answers: countdown-api's example request's. */
+const ACCESS_POINTS = locate.locate_request.wifi_access_points.map(point => ({
+  macAddress: point.mac_address,
+  signalStrength: point.signal_strength,
+  ...(point.channel !== undefined && { channel: point.channel }),
+  ...(point.age !== undefined && { age: point.age })
+}));
+
 test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () => {
   // A kiosk that has never registered (the other tests start set up: see playwright.config.ts).
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -92,6 +100,9 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       route.fulfill({ json: { networks: [{ ssid: 'Home', signal: 80, security: 'WPA2', known: false }] } })
     );
     await page.route('http://127.0.0.1:7341/soloist/**', route => route.fulfill({ json: { state: 'playing' } }));
+    await page.route('http://127.0.0.1:7341/location/scan', route =>
+      route.fulfill({ json: { accessPoints: ACCESS_POINTS } })
+    );
   });
 
   for (const size of [
@@ -116,7 +127,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await shot('0-welcome');
       await page.getByRole('button', { name: 'Start' }).click();
       const chapters = page.getByRole('navigation', { name: 'Set up this screen' }).getByRole('listitem');
-      await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Presence']);
+      await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Location', 'Presence']);
 
       // Wi-Fi: nothing registers on no network, and it moves on by itself once the Pi has joined one.
       await expect(page.getByRole('region', { name: 'Wi-Fi' })).toBeVisible();
@@ -134,7 +145,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await shot('2-account');
 
       // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to.
-      const owned = await fakeCountdownServer(page, {});
+      const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
       server.pair();
       await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
       // The phone was sent on, so the code is not shown again, only what happens there.
@@ -170,10 +181,49 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await expect(page.getByText('Soloist is set up and signed in to Spotify.')).toBeVisible({ timeout: 10_000 });
       await shot('4c-soloist-set');
 
+      // Location: where the kiosk is was found in the background, from the Wi-Fi networks the Pi sees, while the owner
+      // was on their phone, and the stops near it with it.
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await expect(page.getByRole('region', { name: 'Location' })).toBeVisible({ timeout: 10_000 });
+      const postcodes = page.getByRole('list', { name: 'Postcode' }).getByRole('button');
+      await expect(postcodes).toHaveText(locate.locate.postcodes.map(near => near.postcode));
+      await expect(page.getByRole('textbox', { name: 'Not listed? Type your postcode' })).toBeVisible();
+      expect(owned.located[0]).toEqual(locate.locate_request);
+      const atGoogles = `?latitude=${locate.locate.latitude}&longitude=${locate.locate.longitude}`;
+      expect(owned.near.length).toBeGreaterThan(0);
+      expect(new Set(owned.near)).toEqual(new Set([atGoogles]));
+      await shot('5-location');
+      // Each large enough to tap, and all of them on the screen.
+      const boxes = await Promise.all((await postcodes.all()).map(postcode => postcode.boundingBox()));
+      for (const box of boxes) {
+        expect(box?.height).toBeGreaterThanOrEqual(60);
+        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(size.height);
+      }
+
+      // A postcode picked is the notice board's, and the weather's place; the stops near it, none ticked, are those
+      // found in the background, with no second ask.
+      const asked = owned.near.length;
+      await postcodes.first().click();
+      const stops = page.getByRole('list', { name: 'Stops nearby' }).getByRole('button');
+      await expect(stops.first()).toContainText('Westmoreland Road');
+      await expect(stops.first()).toContainText('140 m');
+      await expect(stops.first()).toHaveAttribute('aria-pressed', 'false');
+      expect(owned.near).toHaveLength(asked);
+      expect(owned.saves.at(-2)).toMatchObject({
+        notice_board: { postcode: 'SE17 2PU', country: 'GB', address: null }
+      });
+      expect(owned.saves.at(-1)).toMatchObject({ weather: { location: 'Oslo', key: 'oslo-no-3143244' } });
+      await shot('5b-location-stops');
+      await stops.first().click();
+      await expect(stops.first()).toHaveAttribute('aria-pressed', 'true');
+
       // Presence: the scan only starts once they have Bluetooth open and tap OK.
       const bluetooth = await fakePhonePairing(page);
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
+      expect(owned.saves.at(-1)).toMatchObject({
+        arrivals: { stops: [{ source: 'tfl', id: '490014501K' }], group_by_route: false }
+      });
       await expect(page.getByText('Open Settings, then Bluetooth, on your phone, and tap OK.')).toBeVisible();
       await shot('5-presence');
       expect(bluetooth.asked).toEqual([]);
@@ -192,6 +242,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await page.getByRole('button', { name: 'Done' }).click();
       await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
       expect(await page.evaluate(() => localStorage.getItem('maxmix.setupDone'))).toBe('1');
+      expect(await page.evaluate(() => localStorage.getItem('maxmix.setupLocationDone'))).toBe('1');
     });
   }
 });

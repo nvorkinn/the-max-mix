@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deviceCredentials,
   deviceSecret,
+  finishLocation,
   finishSetup,
   forgetRegistration,
+  isLocationSet,
   keepDeviceId,
   kioskScreen,
   needsSetup,
@@ -177,10 +179,19 @@ describe('keeping the device', () => {
     localStorage.setItem('maxmix.deviceSecret', '0123abcd');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
     finishSetup();
+    finishLocation();
     forgetRegistration();
     expect(deviceCredentials()).toBeNull();
     expect(localStorage.getItem('maxmix.deviceSecret')).toBeNull();
     expect(localStorage.getItem('maxmix.setupDone')).toBeNull();
+    expect(isLocationSet()).toBe(false);
+  });
+
+  it("keeps the wizard's Location chapter done", () => {
+    expect(isLocationSet()).toBe(false);
+    finishLocation();
+    expect(isLocationSet()).toBe(true);
+    expect(localStorage.getItem('maxmix.setupLocationDone')).toBe('1');
   });
 });
 

@@ -560,6 +560,7 @@ export const STRINGS = {
   'setup.chapter_account': { en: 'Account', nb: 'Konto' },
   'setup.chapter_spotify': { en: 'Spotify', nb: 'Spotify' },
   'setup.chapter_soloist': { en: 'Soloist', nb: 'Soloist' },
+  'setup.chapter_location': { en: 'Location', nb: 'Sted' },
   'setup.chapter_presence': { en: 'Presence', nb: 'Tilstedeværelse' },
   'setup.welcome': { en: 'Welcome', nb: 'Velkommen' },
   'setup.welcome_text': {
@@ -612,6 +613,34 @@ export const STRINGS = {
     en: 'Select your phone when it appears.',
     nb: 'Velg telefonen din når den dukker opp.'
   },
+  'setup.location_pick': {
+    en: 'Pick your postcode. It sets the weather and the local notices.',
+    nb: 'Velg postnummeret ditt. Det bestemmer været og de lokale oppslagene.'
+  },
+  'setup.location_lead': {
+    en: 'Type your postcode. It sets the weather and the local notices.',
+    nb: 'Skriv postnummeret ditt. Det bestemmer været og de lokale oppslagene.'
+  },
+  'setup.location_looking': { en: 'Finding nearby postcodes', nb: 'Finner postnumre i nærheten' },
+  'setup.location_type': { en: 'Not listed? Type your postcode', nb: 'Står det ikke her? Skriv postnummeret ditt' },
+  'setup.location_type_only': { en: 'Your postcode', nb: 'Postnummeret ditt' },
+  'setup.location_use': { en: 'Use', nb: 'Bruk' },
+  'setup.location_skip': { en: 'Skip', nb: 'Hopp over' },
+  'setup.location_unknown': { en: 'Couldn’t find that postcode.', nb: 'Fant ikke det postnummeret.' },
+  'setup.location_failed': {
+    en: 'Couldn’t save. Try again in a moment.',
+    nb: 'Kunne ikke lagre. Prøv igjen om litt.'
+  },
+  'setup.location_stops': {
+    en: 'Tap the stops to show departures from.',
+    nb: 'Trykk på stoppene du vil se avganger fra.'
+  },
+  'setup.location_stops_search': {
+    en: 'Search for the stops to show departures from.',
+    nb: 'Søk etter stoppene du vil se avganger fra.'
+  },
+  'setup.location_nearby': { en: 'Stops nearby', nb: 'Stopp i nærheten' },
+  'setup.location_search': { en: 'Search for another stop', nb: 'Søk etter et annet stopp' },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;

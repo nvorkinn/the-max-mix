@@ -1,6 +1,6 @@
 // cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS
 import { readFileSync } from 'node:fs';
-import type { Page } from '@playwright/test';
+import type { Page, Request } from '@playwright/test';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
@@ -9,6 +9,18 @@ const fixture = JSON.parse(
 const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
 ) as { stops_query: string; stops: object[]; places_query: string; places: object[]; here: object[] };
+
+/** countdown-api's example answers to the setup wizard's location routes. */
+export const locate = JSON.parse(
+  readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/locate.json', import.meta.url), 'utf8')
+) as {
+  locate_request: {
+    wifi_access_points: { mac_address: string; signal_strength: number; channel?: number; age?: number }[];
+  };
+  locate: { latitude: number; longitude: number; postcodes: { postcode: string }[] };
+  postcode: object;
+  stops_near: object[];
+};
 
 const panels = JSON.parse(
   readFileSync(
@@ -80,6 +92,11 @@ const WEATHER = {
     }
   }
 };
+
+/** A request's query string, as the location routes' fakes record it. */
+function queryOf(request: Request): string {
+  return new URL(request.url()).search;
+}
 
 /** The CORS headers the real server sends the app's origin on its screens' API. */
 function corsFor(origin = '*') {
@@ -179,7 +196,9 @@ async function fakeSpotifySignIns(page: Page) {
  * save changes. A save of a section (PUT /api/devices/config/{section}) with the version as If-Match is answered with the
  * whole config, the section replaced; one with an older version is a 409; and every save is `saveStatus` with no body
  * when a test gives one. Returns the Authorization header of each request, the whole config each save made, and the
- * people with a Soloist key saved, which a test may add to, and the Spotify sign-ins handed to phones.
+ * people with a Soloist key saved, which a test may add to, and the Spotify sign-ins handed to phones. The setup
+ * wizard's location routes answer countdown-api's example (locate.json) for anything asked; what each was asked is
+ * returned too (`located`: the bodies POSTed to /api/devices/locate; `postcodes`, `near`: the query strings).
  */
 export async function fakeCountdownServer(
   page: Page,
@@ -304,9 +323,35 @@ export async function fakeCountdownServer(
       body: JSON.stringify(panels.arrivals)
     });
   });
+  // The setup wizard's location routes: countdown-api's example, whatever is asked.
+  const located: unknown[] = [];
+  const postcodes: string[] = [];
+  const near: string[] = [];
+  const locationRoutes = [
+    [`${API}/api/devices/locate`, locate.locate, located, (request: Request) => request.postDataJSON() as unknown],
+    [`${API}/api/postcodes/lookup?*`, locate.postcode, postcodes, queryOf],
+    [`${API}/api/stops/near?*`, locate.stops_near, near, queryOf]
+  ] as const;
+  await Promise.all(
+    locationRoutes.map(([url, answer, asked, what]) =>
+      page.route(url, route => {
+        const request = route.request();
+        const cors = { ...corsFor(request.headers()['origin']), 'Access-Control-Allow-Methods': 'GET, POST' };
+        if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+        if (current === null) return route.fulfill({ status: 401, headers: cors });
+        (asked as unknown[]).push(what(request));
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          contentType: 'application/json',
+          body: JSON.stringify(answer)
+        });
+      })
+    )
+  );
   const soloistKeys = await fakeSoloistKeys(page, () => current !== null);
   const spotifySignIns = await fakeSpotifySignIns(page);
-  return { authorizations, saves, soloistKeys, spotifySignIns };
+  return { authorizations, saves, soloistKeys, spotifySignIns, located, postcodes, near };
 }
 
 /**
