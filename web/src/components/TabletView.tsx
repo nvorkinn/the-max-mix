@@ -81,6 +81,8 @@ const currentMinute = () => Math.floor(Date.now() / 60_000);
 // While the kiosk's player is active and lists its queue itself the Web API is not asked at all; while it is active
 // without a list, the queue is re-read when it says the queue changed, and this is only a safety net.
 const QUEUE_POLL_MS = 10_000;
+/** How long the Speakers view stays after a choice is saved, before the panel goes back to the lyrics or queue. */
+const SPEAKERS_SAVED_SHOWN_MS = 5000;
 const PLAYER_QUEUE_POLL_MS = 20_000;
 
 /** Writes `message` to the debug log each time it changes to a new, non-empty value. */
@@ -595,6 +597,23 @@ export default function TabletView() {
     playOnSonos,
     leaveSonos: sonos.leave
   });
+  // Once a choice is saved there is nothing left to do in the Speakers view, so a moment later the panel goes back to its
+  // own view. Another change, or another view tapped meanwhile, calls that off.
+  const [speakersSaved, setSpeakersSaved] = useState(false);
+  const showDefaultPanel = panel.showDefault;
+  // Adjusted during render, like the panel's own view (usePanelView), not in an effect.
+  if (speakersSaved && (!speakersShown || speakers.dirty)) setSpeakersSaved(false);
+  useEffect(() => {
+    if (!speakersSaved) return;
+    const timer = setTimeout(() => {
+      setSpeakersSaved(false);
+      showDefaultPanel();
+    }, SPEAKERS_SAVED_SHOWN_MS);
+    return () => clearTimeout(timer);
+  }, [speakersSaved, showDefaultPanel]);
+  const saveSpeakers = async () => {
+    if (await speakers.save()) setSpeakersSaved(true);
+  };
   // While the Speakers view shows a changed choice, the buttons save or cancel it; elsewhere they switch the view.
   let speakersButton: 'speakers' | 'save' | 'saving' = 'speakers';
   if (speakersShown && speakers.saving) speakersButton = 'saving';
@@ -756,7 +775,7 @@ export default function TabletView() {
                   onShow={showPanel}
                   lyricsSyncing={lyricsSyncing}
                   speakersButton={speakersButton}
-                  onSave={() => void speakers.save()}
+                  onSave={() => void saveSpeakers()}
                   onCancel={speakers.cancel}
                 />
               )}

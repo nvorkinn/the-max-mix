@@ -56,4 +56,12 @@ describe('usePanelView', () => {
     act(() => result.current.show('queue'));
     expect(result.current.view).toBe('queue');
   });
+
+  it('goes back to the song’s own view from the one tapped', () => {
+    const { result } = setup({ lyrics: 'none', playing: true, track: 'a' });
+    act(() => result.current.show('speakers'));
+    expect(result.current.view).toBe('speakers');
+    act(() => result.current.showDefault());
+    expect(result.current.view).toBe('queue');
+  });
 });
