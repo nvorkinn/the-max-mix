@@ -42,10 +42,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The runner's own package lists usually still have these, so `apt-get update` runs only when they do not. Nor
+      # does needrestart look for services to restart on a runner that is thrown away.
       - name: Install the tools
         run: |
-          sudo apt-get update -q
-          sudo apt-get install --yes --no-install-recommends rauc dosfstools mtools fdisk zstd jq
+          install() {
+            sudo env NEEDRESTART_SUSPEND=1 apt-get install --yes --no-install-recommends rauc dosfstools mtools fdisk zstd jq
+          }
+          install || { sudo apt-get update -q && install; }
       - name: Download the bundle
         env:
           GH_TOKEN: ${{ github.token }}

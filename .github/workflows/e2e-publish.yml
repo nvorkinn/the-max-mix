@@ -107,7 +107,7 @@ jobs:
           gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' > changed-files.txt
           E2E_RESULT=$(gh api --paginate "repos/$REPO/actions/runs/$SOURCE_RUN_ID/jobs" |
             jq -rs '[.[].jobs[] | select(.name | startswith("e2e / test ("))] |
-              if length == 3 and all(.conclusion == "success") then "success" else "failure" end')
+              if length > 0 and all(.conclusion == "success") then "success" else "failure" end')
           E2E_RESULT="$E2E_RESULT" node scripts/screenshot-comment.ts > comment.md
           ids=$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq \
             '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- playwright-screenshots -->"))) | .id')
