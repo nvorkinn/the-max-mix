@@ -268,25 +268,27 @@
 }
 /*
   The Spotify and Settings tabs lie on the Dashboard's photo (TabBackdrop); on the Spotify tab the controls are laid
-  straight on it. The words here are the Dashboard's warm white, so they read on any photo; the controls and highlights
+  straight on it. The glass and the panels on it are the app's navy, seen through, and the words its near-white, so
+  they read on any photo; the controls and highlights
   keep the chosen colour, or Dynamic's. Where controls lie over the photo it is blurred and darkened, as under the
   Dashboard's boards: behind the column beside the artwork, behind the control bar, and a fade behind the tab bar.
 */
 .app-tab-panel.on-photo {
-  --glass: 9 12 16;
+  /* The page's navy (--page), as the glass the photo is darkened with, so these tabs are of a piece with setup. */
+  --glass: 9 14 31;
   --page: rgb(var(--glass));
-  --surface: rgb(255 255 255 / 8%);
-  --surface-raised: rgb(255 255 255 / 14%);
-  --ink: #f7f4ec;
-  --muted: rgb(247 244 236 / 72%);
-  --faint: rgb(247 244 236 / 55%);
-  --border: rgb(255 255 255 / 16%);
-  --track: rgb(255 255 255 / 24%);
+  --surface: rgb(118 146 226 / 11%);
+  --surface-raised: rgb(118 146 226 / 19%);
+  --ink: #f5f6ff;
+  --muted: rgb(213 221 245 / 76%);
+  --faint: rgb(213 221 245 / 58%);
+  --border: rgb(140 166 240 / 22%);
+  --track: rgb(140 166 240 / 30%);
   --glow: none;
-  --lyric-ahead: rgb(247 244 236 / 45%);
+  --lyric-ahead: rgb(245 246 255 / 45%);
 
   isolation: isolate;
-  background: #1c2230;
+  background: #101a33;
   color: var(--ink);
 }
 .app-tab-panel.on-photo::before {
