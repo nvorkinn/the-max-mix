@@ -7,17 +7,17 @@
 // watch: scans LE for 8 s every 30 s, like presence.ts, and prints when each paired device was last heard.
 //
 // Every BlueZ change goes to ~/bt-probe-<time>.jsonl, and every name a device takes to ~/bt-probe-<time>-names.tsv
-// (appended, never rewritten: time, seconds since first heard, address, Classic or LE, old and new name). dbus-native comes from the installed kiosk-audio
-// (KIOSK_AUDIO_DIR, default /opt/the-max-mix/kiosk-audio). Stop kiosk-audio pairing first; presence can keep running.
+// (appended, never rewritten: time, seconds since first heard, address, Classic or LE, old and new name). dbus-native comes from the installed kiosk-server
+// (KIOSK_SERVER_DIR, default /opt/the-max-mix/server). Stop kiosk-server pairing first; presence can keep running.
 import { appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 
-const kioskAudio = process.env['KIOSK_AUDIO_DIR'] ?? '/opt/the-max-mix/kiosk-audio';
+const kioskServer = process.env['KIOSK_SERVER_DIR'] ?? '/opt/the-max-mix/server';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const dbus: any = createRequire(path.join(kioskAudio, 'package.json'))('dbus-native');
+const dbus: any = createRequire(path.join(kioskServer, 'package.json'))('dbus-native');
 
 const ADAPTER = '/org/bluez/hci0';
 const AGENT = '/org/themaxmix/probe_agent';

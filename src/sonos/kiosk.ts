@@ -38,7 +38,7 @@ async function ask(path: string, init: RequestInit, refused: string): Promise<Re
   try {
     response = await fetch(`${KIOSK_SERVICE}${path}`, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (error) {
-    throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
+    throw new Error(`The kiosk’s server did not answer: ${errorMessage(error)}`, { cause: error });
   }
   if (response.ok) return response;
   if (response.status === 400) throw new Error(refused);

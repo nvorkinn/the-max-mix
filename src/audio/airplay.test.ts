@@ -28,7 +28,7 @@ describe('listAudioOutputs', () => {
     linked: false
   };
 
-  it('asks the kiosk’s audio service for its outputs, sorted by name, leaving out anything malformed', async () => {
+  it('asks the kiosk’s server for its outputs, sorted by name, leaving out anything malformed', async () => {
     const fetchMock = answer({ speakers: [], outputs: [kitchen, boom, { id: 'x', name: 'Bad', kind: 'cable' }, 3] });
     vi.stubGlobal('fetch', fetchMock);
     await expect(listAudioOutputs()).resolves.toEqual({ outputs: [boom, kitchen], legacy: false });
@@ -53,7 +53,7 @@ describe('listAudioOutputs', () => {
 
   it('says so when the service is not there or cannot read PipeWire', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    await expect(listAudioOutputs()).rejects.toThrow(/audio service did not answer.*Failed to fetch/);
+    await expect(listAudioOutputs()).rejects.toThrow(/server did not answer.*Failed to fetch/);
     vi.stubGlobal('fetch', answer({}, 503));
     await expect(listAudioOutputs()).rejects.toThrow(/could not read PipeWire \(503\)/);
   });

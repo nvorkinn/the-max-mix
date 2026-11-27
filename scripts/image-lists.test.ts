@@ -48,13 +48,13 @@ describe('checkUnits', () => {
   const rootfs: RootfsUnit[] = [
     { name: 'kiosk.service', scope: 'system', hasInstall: true },
     { name: 'kiosk-ssh-keys.service', scope: 'system', hasInstall: false },
-    { name: 'kiosk-audio.service', scope: 'user', hasInstall: true }
+    { name: 'kiosk-server.service', scope: 'user', hasInstall: true }
   ];
 
   it('accepts every installable unit listed, and units from packages', () => {
     expect(
       checkUnits(
-        'enable kiosk.service\nenable-global kiosk-audio.service\nenable bluetooth.service\nmask getty@tty1.service\n',
+        'enable kiosk.service\nenable-global kiosk-server.service\nenable bluetooth.service\nmask getty@tty1.service\n',
         rootfs
       )
     ).toEqual([]);
@@ -63,13 +63,13 @@ describe('checkUnits', () => {
   it('flags a bad action or name, a repeat and the wrong scope', () => {
     expect(
       checkUnits(
-        'start kiosk.service\nenable kiosk.service\nenable kiosk-audio.service\nenable kiosk-ssh-keys.service\nenable foo\n',
+        'start kiosk.service\nenable kiosk.service\nenable kiosk-server.service\nenable kiosk-ssh-keys.service\nenable foo\n',
         rootfs
       )
     ).toEqual([
       'line 1: the action is enable, enable-global, mask, not "start"',
       'line 2: kiosk.service is already on line 1',
-      'line 3: kiosk-audio.service is a user unit, so its action is enable-global',
+      'line 3: kiosk-server.service is a user unit, so its action is enable-global',
       'line 4: kiosk-ssh-keys.service has no [Install] section, so it cannot be enabled',
       'line 5: "foo" is not a unit name'
     ]);
@@ -77,7 +77,7 @@ describe('checkUnits', () => {
 
   it('flags an installable unit in the rootfs that is not listed', () => {
     expect(checkUnits('enable kiosk.service\n', rootfs)).toEqual([
-      'kiosk-audio.service has an [Install] section but is not listed, so nothing would start it'
+      'kiosk-server.service has an [Install] section but is not listed, so nothing would start it'
     ]);
   });
 });

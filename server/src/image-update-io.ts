@@ -1,5 +1,5 @@
 // The real Pi behind image-update.ts's UpdateIO, shared by kiosk-update.ts and kiosk-health.ts (as root) and by
-// kiosk-audio (as the kiosk user, which only reads).
+// kiosk-server (as the kiosk user, which only reads).
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';

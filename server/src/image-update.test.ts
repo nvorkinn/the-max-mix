@@ -457,7 +457,7 @@ function appPi(options: Parameters<typeof pi>[0] = {}) {
 describe('a release that changed only the app', () => {
   const APP = `${RELEASES}/download/dev/the-max-mix-bbb.app`;
   const RESTARTS = [
-    ['/usr/bin/systemctl', '--user', '--machine=kiosk@', 'restart', 'kiosk-audio.service'],
+    ['/usr/bin/systemctl', '--user', '--machine=kiosk@', 'restart', 'kiosk-server.service'],
     ['/usr/bin/systemctl', 'restart', 'kiosk.service']
   ];
   it('reads a manifest, and nothing else', () => {
@@ -475,7 +475,7 @@ describe('a release that changed only the app', () => {
     expect(world.fetched).toContain(`${APP}.json.sig`);
     expect(world.apps.fetched).toEqual([`${APP}.tar.gz`]);
     expect(world.installed).toEqual([]);
-    expect(world.ran).toEqual([['/usr/bin/node', '/apps/dev+bbb/kiosk-audio/kiosk-update.ts', 'check'], ...RESTARTS]);
+    expect(world.ran).toEqual([['/usr/bin/node', '/apps/dev+bbb/server/src/kiosk-update.ts', 'check'], ...RESTARTS]);
     expect(world.apps).toMatchObject({
       inUse: 'dev+bbb',
       previous: null,

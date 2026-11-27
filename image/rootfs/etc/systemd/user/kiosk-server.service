@@ -1,7 +1,7 @@
 # A user unit, enabled for every user but run only for the kiosk user: it needs that user's PipeWire session, which
 # kiosk.service's login session starts.
 [Unit]
-Description=THE MAX MIX audio routing (keeps the browser's sound on the chosen AirPlay speakers)
+Description=THE MAX MIX kiosk server (answers the app on 127.0.0.1: speakers, Sonos, Wi-Fi, updates, lyrics)
 ConditionUser=kiosk
 Wants=pipewire.service wireplumber.service
 After=pipewire.service wireplumber.service
@@ -22,7 +22,7 @@ EnvironmentFile=-/run/kiosk/screen.env
 # From the app in use, which app-node finds once as this service starts. It also sets KIOSK_APP_DIR, the web app this
 # service serves (app-files.ts), to that same app, so an open page never loses a file to a newer one: the updater
 # restarts the kiosk, and this service with it, to change over.
-ExecStart=/usr/local/lib/the-max-mix/app-node kiosk-audio.ts watch
+ExecStart=/usr/local/lib/the-max-mix/app-node kiosk-server.ts watch
 Restart=always
 RestartSec=2
 NoNewPrivileges=yes

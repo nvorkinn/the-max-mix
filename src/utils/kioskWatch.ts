@@ -1,6 +1,6 @@
 // On the Pi kiosk, tells the kiosk service (server/src/watchdog.ts) that the page is alive, so it can restart Chromium
 // when the tab crashes, the page hangs or the app goes blank; and copies the app's errors to the Pi's journal
-// (journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service), where they survive that restart. Both are best effort and silent:
+// (journalctl _SYSTEMD_USER_UNIT=kiosk-server.service), where they survive the restart. Both are best effort and silent:
 // a failure here must not log anything, or an error about the kiosk service would be sent to the kiosk service again.
 import { getDebugEntries, subscribeDebugLog } from './debugLog';
 import { KIOSK_SERVICE } from './kioskService';

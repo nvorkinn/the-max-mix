@@ -1,3 +1,3 @@
 # The backlight of a panel that has one (DSI): the kernel lets only root write its brightness, so this gives it to the
-# video group, which the kiosk user is in, for the kiosk-audio service (server/src/backlight.ts).
+# video group, which the kiosk user is in, for the kiosk server (server/src/backlight.ts).
 ACTION!="remove", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod g+w /sys/class/backlight/%k/brightness"

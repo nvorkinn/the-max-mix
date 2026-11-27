@@ -1,4 +1,4 @@
-// Bluetooth speakers on the kiosk. The Pi's audio service (server/src/bluetooth.ts) pairs and connects them over
+// Bluetooth speakers on the kiosk. The Pi's server (server/src/bluetooth.ts) pairs and connects them over
 // http://127.0.0.1; once one is connected it is an audio output like an AirPlay speaker (see airplay.ts).
 import { errorMessage } from '../utils/errorMessage';
 import { KIOSK_SERVICE } from '../utils/kioskService';
@@ -38,7 +38,7 @@ async function ask(path: string, init: RequestInit, timeoutMs: number): Promise<
   try {
     response = await fetch(`${KIOSK_SERVICE}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
-    throw new Error(`The kiosk’s audio service did not answer: ${errorMessage(error)}`, { cause: error });
+    throw new Error(`The kiosk’s server did not answer: ${errorMessage(error)}`, { cause: error });
   }
   const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
   if (!response.ok) {

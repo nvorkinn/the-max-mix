@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ERRORS } from './nmcli.ts';
 import { localize, preferredLanguage, say } from './words.ts';
 
-describe('kiosk-audio/words', () => {
+describe('server/words', () => {
   it('fills in the arguments, and leaves a placeholder it has no argument for', () => {
     expect(say('error.couldNotJoin', 'en', { ssid: 'Home', error: 'Nope.' })).toBe('Could not join Home: Nope.');
     expect(say('error.couldNotJoin', 'en', { ssid: 'Home' })).toBe('Could not join Home: {error}');

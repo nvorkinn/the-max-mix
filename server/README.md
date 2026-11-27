@@ -1,7 +1,9 @@
-# THE MAX MIX kiosk service and audio routing
+# THE MAX MIX kiosk server
 
-A small TypeScript service that runs on the Pi as a user unit (`kiosk-audio.service`, as the `kiosk` user) and answers the
-app on `127.0.0.1:7341`. It does two jobs:
+A small TypeScript server that runs on the Pi as a user unit (`kiosk-server.service`, as the `kiosk` user) and answers
+the app on `127.0.0.1:7341`. It does everything the app cannot do from a browser: it serves the app itself, routes the
+sound, talks to Sonos, Bluetooth and Wi-Fi, fetches lyrics, watches that the app is alive and updates the Pi. Its code
+is in `src/`, and the file names below are in that folder. Its first two jobs:
 
 - **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk's music (Spotify Soloist's stream) to the ones picked in the
   app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
@@ -147,7 +149,7 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
    finds RAOP speakers through Avahi and makes a PipeWire sink for each, with `raop.latency.ms = 500`
    (`kiosk_raop_latency_ms`) so play, pause and skip reach the speakers quickly. The same file makes `kiosk_silent`, a
    null sink with a high session priority, so it is the default sink and Soloist's stream joins it at start without
-   making a sound; it is not listed as a speaker. The audio service
+   making a sound; it is not listed as a speaker. The server
    also answers `GET http://127.0.0.1:7341/speakers` (`server.ts`, localhost only, readable by the app's origin alone) with
    the names of those sinks and of connected Bluetooth speakers' sinks, and the app lists them every 5 seconds. Its
    `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,
@@ -162,7 +164,7 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
    choice in `~/.local/state/the-max-mix/speakers.json` and links each of Soloist's
    channels to the same channel of every chosen sink with `pw-link`, before removing its links to other sinks, so the
    music does not drop out. Links to anything that is not a sink (a level meter) are left alone.
-3. **Keeping it there.** The `kiosk-audio` user unit (`node kiosk-audio.ts watch`) reads the saved choice every 2
+3. **Keeping it there.** The `kiosk-server` user unit (`node kiosk-server.ts watch`) reads the saved choice every 2
    seconds and routes again when needed, so a stream Soloist opens again, or a speaker that drops off the network and
    comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
@@ -183,7 +185,7 @@ minutes (a crashed tab, a hung page, or an app that went blank), the service sto
 again. It only acts after this service has had a heartbeat, and gives every new Chromium the full 3 minutes; each restart without a heartbeat in between
 doubles the wait (up to an hour), so a page that cannot load is not restarted in a loop. The app also sends its errors
 to `POST /log` (at most 30 lines a minute reach the journal). Both are in the journal:
-`journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root), lines starting `app` or `No heartbeat`.
+`journalctl _SYSTEMD_USER_UNIT=kiosk-server.service` (as root), lines starting `app` or `No heartbeat`.
 
 ## The requests
 
@@ -280,7 +282,7 @@ The service's own error messages stay in English in the code; the app shows them
 
 | File               | What it is                                                              |
 | ------------------ | ----------------------------------------------------------------------- |
-| `kiosk-audio.ts`   | The program: `watch`, the background unit that also starts the service. |
+| `kiosk-server.ts`  | The program: `watch`, the background unit that also starts the service. |
 | `server.ts`        | The HTTP service: the requests above, and the origin checks.            |
 | `update-socket.ts` | The WebSocket at `/power/update`: origin check, one update at a time.   |
 | `update.ts`        | The update: follows the journal, runs the pull and the restart.         |
@@ -367,7 +369,7 @@ State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` 
 
 ## On the device
 
-- `systemctl --user -M kiosk@ status kiosk-audio` and `journalctl _SYSTEMD_USER_UNIT=kiosk-audio.service` (as root).
+- `systemctl --user -M kiosk@ status kiosk-server` and `journalctl _SYSTEMD_USER_UNIT=kiosk-server.service` (as root).
 - `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Soloist's stream goes; `wpctl get-volume <id>`
   shows a speaker's volume as the app does.
 - `curl -s http://127.0.0.1:7341/speakers` lists what the app sees. A POST needs the app's `Origin`, for example

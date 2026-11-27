@@ -189,7 +189,7 @@ describe('useSpotifyPlayer with the kiosk player', () => {
       socket.receive({ ...authState(false, 'The Max Mix 4'), logged_in: false });
     });
     await advance(30_000);
-    // The name Soloist reported, which kiosk-audio picks for each kiosk.
+    // The name Soloist reported, which kiosk-server picks for each kiosk.
     expect(result.current.error).toBe('To sign the kiosk in, pick The Max Mix 4 in Spotify on your phone.');
     expect(result.current.problem).toMatchObject({ recovery: 'pick-on-phone', device: 'The Max Mix 4' });
     act(() => {

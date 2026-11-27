@@ -3,9 +3,9 @@
 # unit in rootfs/etc/systemd that has an [Install] section is listed here; scripts/check-image.ts checks that, and the
 # format.
 
-# The kiosk: Cage and Chromium on tty7. It brings up the kiosk user's session, which starts kiosk-audio.
+# The kiosk: Cage and Chromium on tty7. It brings up the kiosk user's session, which starts kiosk-server.
 enable kiosk.service
-enable-global kiosk-audio.service
+enable-global kiosk-server.service
 # The kiosk takes the display on tty7; tty1 shows nothing.
 mask getty@tty1.service
 
@@ -31,7 +31,7 @@ enable bluetooth.service
 enable avahi-daemon.service
 enable systemd-timesyncd.service
 # Pi OS restores the radios' last rfkill state at boot, and its image keeps Wi-Fi blocked until a country is set. The
-# country comes from the kernel command line (image/boot/cmdline.txt), and kiosk-audio unblocks Bluetooth itself.
+# country comes from the kernel command line (image/boot/cmdline.txt), and kiosk-server unblocks Bluetooth itself.
 mask systemd-rfkill.service
 mask systemd-rfkill.socket
 

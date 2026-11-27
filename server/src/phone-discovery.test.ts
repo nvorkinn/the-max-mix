@@ -115,7 +115,7 @@ afterEach(async () => {
   await new Promise<void>(resolve => broker?.close(resolve));
 });
 
-describe('kiosk-audio/phone-discovery', () => {
+describe('server/phone-discovery', () => {
   it('names the kiosk, registers its agent, scans Classic and LE, and stops scanning before it pairs', async () => {
     await fakeBluez();
     const discovery = await discoverPhones(() => null, await client());

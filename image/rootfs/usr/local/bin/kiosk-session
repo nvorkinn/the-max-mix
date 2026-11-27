@@ -16,7 +16,7 @@ chromium_pid=/run/kiosk/chromium.pid
 # Chromium listens on 127.0.0.1 only, so nothing on the network reaches it.
 devtools_port=9222
 
-# When the app comes from this machine (the kiosk-audio service), wait for it to answer: the service starts with the
+# When the app comes from this machine (the kiosk server), wait for it to answer: the service starts with the
 # kiosk user's session and may not be up yet. An app from elsewhere is started at once.
 wait_app() {
   local i
@@ -28,7 +28,7 @@ wait_app() {
   echo "kiosk-session: the app at $url is not answering" >&2
 }
 
-# Shows the app until Chromium exits. The kiosk-audio service's watchdog stops Chromium through the pid file when the
+# Shows the app until Chromium exits. The kiosk server's watchdog stops Chromium through the pid file when the
 # app stops sending heartbeats, and the loop below starts it again.
 run_chromium() {
   chromium --kiosk --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run --password-store=basic \

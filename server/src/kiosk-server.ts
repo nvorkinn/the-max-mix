@@ -1,5 +1,5 @@
 // The kiosk's audio routing and local service (see README.md), run as the kiosk user next to its PipeWire:
-//   node kiosk-audio.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speaker list, routing,
+//   node kiosk-server.ts watch   the background unit. It answers the app on 127.0.0.1 (server.ts: the speakers, routing,
 //                               the kiosk buttons, and the update stream), and every few seconds routes any stream Soloist opened again and
 //                               any chosen speaker that came back.
 import { homedir, hostname, networkInterfaces } from 'node:os';
@@ -63,6 +63,6 @@ if (process.argv[2] === 'watch') {
     soloistDeviceName: soloistDeviceName(process.env['KIOSK_NAME'], hostname())
   });
 } else {
-  console.error('Usage: kiosk-audio.ts watch');
+  console.error('Usage: kiosk-server.ts watch');
   process.exit(2);
 }

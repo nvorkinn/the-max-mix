@@ -1,7 +1,7 @@
 // RAUC, the A/B updater on image Pis, over its D-Bus API (de.pengutronix.rauc.Installer on the system bus). The updater
 // (image-update.ts) and the health check use it: what slot is booted, what a bundle on GitHub holds, installing one into
 // the other slot with its progress, and marking a slot good, bad or active. A D-Bus policy in the image
-// (the-max-mix-rauc.conf) lets the kiosk user ask too, so kiosk-audio can check for updates from the screen.
+// (the-max-mix-rauc.conf) lets the kiosk user ask too, so kiosk-server can check for updates from the screen.
 import type { MessageBus } from 'dbus-native';
 import { ignoreFailure, untilConnected } from './system-bus.ts';
 

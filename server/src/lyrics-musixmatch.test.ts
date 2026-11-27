@@ -49,7 +49,7 @@ const RICHSYNC = JSON.stringify([
   { ts: 'later', te: 70, l: [{ c: 'Untimed', o: 0 }] }
 ]);
 
-describe('kiosk-audio/lyrics-musixmatch', () => {
+describe('server/lyrics-musixmatch', () => {
   it('turns richsync into LRC with a time before each word and one where the line ends', () => {
     expect(richsyncToLrc(RICHSYNC)).toBe(
       '[01:01.000]<01:01.000>Placeholder <01:01.500>words <01:02.200>here<01:03.500>'

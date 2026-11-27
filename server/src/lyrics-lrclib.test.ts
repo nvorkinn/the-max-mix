@@ -63,7 +63,7 @@ function answering(answers: Record<string, unknown>) {
   return { get, urls };
 }
 
-describe('kiosk-audio/lyrics-lrclib', () => {
+describe('server/lyrics-lrclib', () => {
   it('turns a Lyricsfile into LRC, with a time before each word of a word-timed line', () => {
     expect(lyricsfileToLrc(LYRICSFILE)).toBe(
       [

@@ -13,7 +13,7 @@ Conflicts=shutdown.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/node /opt/the-max-mix/kiosk-audio/kiosk-first-boot.ts --data=/dev/disk/by-partlabel/data --card=/dev/disk/by-partlabel/autoboot
+ExecStart=/usr/bin/node /opt/the-max-mix/server/src/kiosk-first-boot.ts --data=/dev/disk/by-partlabel/data --card=/dev/disk/by-partlabel/autoboot
 # Formatting a large card takes a while; growing it, a little.
 TimeoutStartSec=5min
 

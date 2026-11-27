@@ -18,11 +18,11 @@ fonts-noto-color-emoji
 chromium
 rpi-chromium-mods
 
-# Camera: rpicam-vid reads a screen's built-in CSI camera through libcamera, for kiosk-audio (the -lite build has no
+# Camera: rpicam-vid reads a screen's built-in CSI camera through libcamera, for kiosk-server (the -lite build has no
 # desktop preview windows)
 rpicam-apps-lite
 
-# The kiosk-audio service and the kiosk programs (Node.js from NodeSource: Debian's is too old)
+# The kiosk server and the kiosk programs (Node.js from NodeSource: Debian's is too old)
 nodejs
 curl
 ca-certificates

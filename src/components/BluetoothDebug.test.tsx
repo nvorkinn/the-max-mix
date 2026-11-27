@@ -138,7 +138,7 @@ describe('BluetoothDebug', () => {
 
   it('says when the kiosk does not answer', async () => {
     fetchMock.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')));
-    await expect(readBluetoothReport()).rejects.toThrow('The kiosk’s audio service did not answer: Failed to fetch');
+    await expect(readBluetoothReport()).rejects.toThrow('The kiosk’s server did not answer: Failed to fetch');
   });
 
   it('says the kiosk refused pairing when it gives no reason', async () => {

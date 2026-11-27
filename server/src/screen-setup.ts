@@ -6,7 +6,7 @@
 // kiosk.service runs it as root before Cage on every start, so it always goes by the screen that is plugged in:
 //   node screen-setup.ts [--rotation <0|90|180|270>] [--scale <number>] [--video-mode <mode>] [--cmdline <cmdline.txt>]
 // It writes the result to /run/kiosk/screen.env (KIOSK_SCREEN_ROTATION and KIOSK_SCREEN_SCALE), which kiosk.service
-// (for kiosk-session and kiosk-display) and the kiosk-audio service (for GET /screen) read, and the touch screen's
+// (for kiosk-session and kiosk-display) and the kiosk server (for GET /screen) read, and the touch screen's
 // rotation to a udev rule in /run/udev/rules.d, which libinput reads when Cage opens the touch screen.
 // The boot partition comes from the image, so --cmdline names the kernel command line, and it also writes the screen
 // mode there, for the console and the next boot: --video-mode (KIOSK_VIDEO_MODE in kiosk.env) if set, else the screen's
@@ -112,7 +112,7 @@ export async function screenSetup(
   };
 }
 
-/** The environment file kiosk.service and kiosk-audio read. */
+/** The environment file kiosk.service and kiosk-server read. */
 export function environmentFile(setup: ScreenSetup): string {
   return `KIOSK_SCREEN_ROTATION=${setup.rotation}\nKIOSK_SCREEN_SCALE=${setup.scale}\n`;
 }

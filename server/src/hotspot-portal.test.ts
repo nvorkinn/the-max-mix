@@ -56,7 +56,7 @@ const service = () => {
   return server;
 };
 
-describe('kiosk-audio/hotspot-portal', () => {
+describe('server/hotspot-portal', () => {
   it('tells this machine’s own connections from the hotspot’s', () => {
     for (const own of ['127.0.0.1', '127.0.0.2', '::1', '::ffff:127.0.0.1']) expect(isLoopback(own)).toBe(true);
     for (const other of ['10.42.0.1', '192.168.1.5', '::ffff:10.42.0.1', '', undefined]) {

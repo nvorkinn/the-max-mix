@@ -1,6 +1,6 @@
 // The kiosk user may restart the kiosk, start an update check or install (kiosk-update.service), the restart that
 // applies an installed update (kiosk-restart.service), a factory reset (kiosk-reset.service, the debug console's
-// Factory reset) and reboot the Pi, for the kiosk-audio service, and nothing else to do with power or units.
+// Factory reset) and reboot the Pi, for the kiosk server, and nothing else to do with power or units.
 polkit.addRule(function (action, subject) {
   if (subject.user !== 'kiosk') {
     return polkit.Result.NOT_HANDLED;
