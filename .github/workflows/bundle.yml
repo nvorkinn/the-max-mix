@@ -173,5 +173,7 @@ jobs:
             ${{ runner.temp }}/out/the-max-mix.app.tar.gz
             ${{ runner.temp }}/out/the-max-mix.app.json
             ${{ runner.temp }}/out/the-max-mix.app.json.sig
+          # The bundle is squashfs and the app a .tar.gz: compressing them again only costs time.
+          compression-level: 0
           if-no-files-found: error
           retention-days: 1
