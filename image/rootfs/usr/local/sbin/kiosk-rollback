@@ -1,4 +1,5 @@
 #!/bin/sh
-# Goes back to the version in the other slot now: reboots into it, keeps it once it is healthy, and does not install the
-# version left behind again.
+# Goes back to the previous version now, and does not install the version left behind again. That is the version in the
+# other slot: the Pi reboots into it and keeps it once it is healthy. When the running app came on its own, onto /data,
+# it is the app before it (or the image's own), with only a restart of the kiosk.
 exec /usr/local/sbin/kiosk-update rollback

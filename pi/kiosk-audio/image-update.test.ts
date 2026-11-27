@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   afterBoot,
+  APP_RELEASE_ENV,
   apply,
   check,
   giveUp,
@@ -13,6 +14,7 @@ import {
   keep,
   parseChannel,
   parseEnv,
+  parseManifest,
   parsePointer,
   pointerUrl,
   RELEASE_ENV,
@@ -39,7 +41,26 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
       [RELEASE_ENV]: 'KIOSK_RELEASE_REF=dev\nKIOSK_RELEASE_COMMIT=aaa\n'
     } as Record<string, string>,
     state,
-    remote: { pointer: `${DEV}\n` as string | null, version: 'dev+bbb', isOffline: false },
+    remote: {
+      pointer: `${DEV}\n` as string | null,
+      version: 'dev+bbb',
+      isOffline: false,
+      /** The app on its own beside the bundle: its manifest, when the release has one. */
+      manifest: null as string | null
+    },
+    /** The apps on /data: each one's `over`, the links, and what was asked of the store. */
+    apps: {
+      over: {} as Record<string, string>,
+      inUse: null as string | null,
+      previous: null as string | null,
+      isTrial: false,
+      isSigned: true,
+      isLocked: false,
+      fetched: [] as string[],
+      pruned: [] as string[][]
+    },
+    /** What the health check finds after a change-over: null is healthy. */
+    wrong: null as string | null,
     fetched: [] as string[],
     inspected: [] as string[],
     installed: [] as string[],
@@ -88,8 +109,45 @@ function pi(options: { channel?: string; state?: Partial<UpdateState>; trial?: b
     },
     fetchText: url => {
       world.fetched.push(url);
-      return world.remote.isOffline ? Promise.reject(new Error('offline')) : Promise.resolve(world.remote.pointer);
+      if (world.remote.isOffline) return Promise.reject(new Error('offline'));
+      return Promise.resolve(url.endsWith('.app.json') ? world.remote.manifest : world.remote.pointer);
     },
+    fetchBytes: url => {
+      world.fetched.push(url);
+      return Promise.resolve(world.remote.manifest === null ? null : Buffer.from('signature'));
+    },
+    apps: {
+      folder: version => `/apps/${version}`,
+      inUse: () => Promise.resolve(world.apps.inUse),
+      previous: () => Promise.resolve(world.apps.previous),
+      over: version => Promise.resolve(world.apps.over[version] ?? null),
+      isTrial: () => Promise.resolve(world.apps.isTrial),
+      setTrial: isTrial => {
+        world.apps.isTrial = isTrial;
+        return Promise.resolve();
+      },
+      isSigned: () => Promise.resolve(world.apps.isSigned),
+      fetch: (url, _expected, version, over) => {
+        world.apps.fetched.push(url);
+        world.apps.over[version] = over;
+        return Promise.resolve();
+      },
+      use: (version, previous) => {
+        world.apps.inUse = version;
+        world.apps.previous = previous;
+        const [ref = '', commit = ''] = (version ?? '').split('+', 2);
+        world.files[APP_RELEASE_ENV] =
+          version === null ? '' : `KIOSK_RELEASE_REF=${ref}\nKIOSK_RELEASE_COMMIT=${commit}\n`;
+        return Promise.resolve();
+      },
+      prune: kept => {
+        world.apps.pruned.push(kept);
+        return Promise.resolve();
+      },
+      lock: () => Promise.resolve(!world.apps.isLocked),
+      unlock: () => Promise.resolve()
+    },
+    health: () => Promise.resolve(world.wrong),
     run: argv => {
       world.ran.push(argv);
       return Promise.resolve();
@@ -381,5 +439,177 @@ describe('cmdlineWithRoot', () => {
 
   it('adds root= to a line without one', () => {
     expect(cmdlineWithRoot('quiet', 'root-a')).toBe('root=PARTLABEL=root-a quiet\n');
+  });
+});
+
+/** The manifest of dev+bbb's app on its own, built with OS os1. */
+const manifest = (fields: object = {}) =>
+  JSON.stringify({ version: 'dev+bbb', os: 'os1', sha256: 'a'.repeat(64), size: 1234, ...fields });
+
+/** A Pi whose slot (dev+aaa) was built with OS os1, on a channel whose release has the app on its own. */
+function appPi(options: Parameters<typeof pi>[0] = {}) {
+  const made = pi(options);
+  made.world.files[RELEASE_ENV] = 'KIOSK_RELEASE_REF=dev\nKIOSK_RELEASE_COMMIT=aaa\nKIOSK_RELEASE_OS=os1\n';
+  made.world.remote.manifest = manifest();
+  return made;
+}
+
+describe('a release that changed only the app', () => {
+  const APP = `${RELEASES}/download/dev/the-max-mix-bbb.app`;
+  const RESTARTS = [
+    ['/usr/bin/systemctl', '--user', '--machine=kiosk@', 'restart', 'kiosk-audio.service'],
+    ['/usr/bin/systemctl', 'restart', 'kiosk.service']
+  ];
+  it('reads a manifest, and nothing else', () => {
+    expect(parseManifest(manifest())).toEqual({ version: 'dev+bbb', os: 'os1', sha256: 'a'.repeat(64), size: 1234 });
+    expect(parseManifest(manifest({ sha256: '../x' }))).toBeNull();
+    expect(parseManifest(manifest({ size: '1234' }))).toBeNull();
+    expect(parseManifest('not JSON')).toBeNull();
+  });
+
+  it('takes the app alone, changes over with no reboot, and keeps it when healthy', async () => {
+    const { io, world } = appPi();
+    const done = await run(io, false);
+    expect(done?.result).toBe('installed');
+    expect(world.fetched).toContain(`${APP}.json`);
+    expect(world.fetched).toContain(`${APP}.json.sig`);
+    expect(world.apps.fetched).toEqual([`${APP}.tar.gz`]);
+    expect(world.installed).toEqual([]);
+    expect(world.ran).toEqual([['/usr/bin/node', '/apps/dev+bbb/kiosk-audio/kiosk-update.ts', 'check'], ...RESTARTS]);
+    expect(world.apps).toMatchObject({
+      inUse: 'dev+bbb',
+      previous: null,
+      isTrial: false,
+      over: { 'dev+bbb': 'dev+aaa' }
+    });
+    expect(world.apps.pruned).toEqual([['dev+bbb']]);
+    expect(world.state.pending).toBeNull();
+    expect(world.log).toContain('Restarting into the update.');
+    expect(world.log.at(-1)).toBe('Kept dev+bbb.');
+    await expect(check(io)).resolves.toMatchObject({ result: 'up-to-date', current: 'dev+bbb' });
+  });
+
+  it('installs the whole bundle when the OS differs, the release has no app alone, or it is not signed', async () => {
+    for (const change of [
+      (world: ReturnType<typeof pi>['world']) => (world.remote.manifest = manifest({ os: 'os2' })),
+      (world: ReturnType<typeof pi>['world']) => (world.remote.manifest = manifest({ version: 'dev+ccc' })),
+      (world: ReturnType<typeof pi>['world']) => (world.remote.manifest = null),
+      (world: ReturnType<typeof pi>['world']) => (world.apps.isSigned = false)
+    ]) {
+      const { io, world } = appPi();
+      change(world);
+      // One Pi at a time.
+      // eslint-disable-next-line no-await-in-loop
+      await run(io, false);
+      expect(world.installed).toEqual([DEV]);
+      expect(world.apps.fetched).toEqual([]);
+      expect(world.ran).toEqual([['tryboot']]);
+    }
+  });
+
+  it('goes back to the app before it when the new one is not healthy, and never retries it', async () => {
+    const { io, world } = appPi();
+    world.wrong = 'The app has sent no heartbeat.';
+    await run(io, false);
+    expect(world.apps).toMatchObject({ inUse: null, previous: null, isTrial: false });
+    expect(world.ran.slice(1)).toEqual([...RESTARTS, ...RESTARTS]);
+    expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
+    expect(world.log).toContain('Not healthy: The app has sent no heartbeat.');
+    await expect(check(io)).resolves.toMatchObject({ result: 'failed', current: 'dev+aaa' });
+  });
+
+  it('goes back as well when the kiosk does not restart with the new app', async () => {
+    const { io, world } = appPi();
+    const realRun = io.run;
+    let restarts = 0;
+    io.run = argv => {
+      const isKioskRestart = argv.join(' ') === '/usr/bin/systemctl restart kiosk.service';
+      return isKioskRestart && restarts++ === 0
+        ? Promise.reject(new Error('kiosk.service failed to start.'))
+        : realRun(argv);
+    };
+    await run(io, false);
+    expect(world.apps).toMatchObject({ inUse: null, isTrial: false });
+    expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
+    expect(world.log).toContain('Not healthy: kiosk.service failed to start.');
+  });
+
+  it('leaves a stable Pi’s app for the next restart', async () => {
+    const { io, world } = appPi({ channel: 'stable' });
+    world.remote.pointer = `${RELEASES}/download/v2/the-max-mix-v2.raucb`;
+    world.remote.version = 'v2+bbb';
+    world.remote.manifest = manifest({ version: 'v2+bbb' });
+    await expect(run(io, false)).resolves.toMatchObject({ result: 'installed', installed: 'v2+bbb' });
+    expect(world.apps.inUse).toBeNull();
+    expect(world.state.pending).toEqual({ version: 'v2+bbb', slot: '', tried: false, over: 'dev+aaa' });
+    await expect(check(io)).resolves.toMatchObject({ result: 'installed' });
+    await restart(io);
+    expect(world.apps.inUse).toBe('v2+bbb');
+    expect(world.ran.slice(1)).toEqual(RESTARTS);
+    expect(world.state.pending).toBeNull();
+  });
+
+  it('keeps the app before the one in use, for a rollback, and drops the older ones', async () => {
+    const { io, world } = appPi();
+    await run(io, false);
+    world.remote.pointer = `${RELEASES}/download/dev/the-max-mix-ccc.raucb`;
+    world.remote.version = 'dev+ccc';
+    world.remote.manifest = manifest({ version: 'dev+ccc' });
+    await run(io, false);
+    expect(world.apps).toMatchObject({ inUse: 'dev+ccc', previous: 'dev+bbb' });
+    expect(world.apps.pruned.at(-1)).toEqual(['dev+ccc', 'dev+bbb']);
+    world.ran.length = 0;
+    await rollback(io);
+    expect(world.apps).toMatchObject({ inUse: 'dev+bbb', previous: null });
+    expect(world.ran).toEqual(RESTARTS);
+    expect(world.state.failed).toEqual(['dev+ccc']);
+    await rollback(io);
+    expect(world.apps.inUse).toBeNull();
+    expect(world.state.failed).toEqual(['dev+ccc', 'dev+bbb']);
+    expect(world.marks).toEqual([]);
+  });
+
+  it('goes back to the image’s own app with no download when the channel names the slot’s release', async () => {
+    const { io, world } = appPi();
+    await run(io, false);
+    world.remote.pointer = `${RELEASES}/download/dev/the-max-mix-aaa.raucb`;
+    world.remote.version = 'dev+aaa';
+    world.remote.manifest = null;
+    world.ran.length = 0;
+    await run(io, false);
+    expect(world.apps.inUse).toBeNull();
+    expect(world.apps.fetched).toHaveLength(1);
+    expect(world.installed).toEqual([]);
+    expect(world.ran).toEqual(RESTARTS);
+  });
+
+  it('counts an app still on trial when the Pi went down as failed', async () => {
+    const { io, world } = appPi({
+      state: { pending: { version: 'dev+bbb', slot: '', tried: true, over: 'dev+aaa' } }
+    });
+    world.apps.isTrial = true;
+    await expect(afterBoot(io)).resolves.toBe('normal');
+    expect(world.apps.isTrial).toBe(false);
+    expect(world.state).toMatchObject({ pending: null, failed: ['dev+bbb'] });
+    expect(world.marks).toEqual([]);
+  });
+
+  it('leaves a waiting app alone at a boot, and drops one put over another slot', async () => {
+    const pending = { version: 'dev+bbb', slot: '', tried: false, over: 'dev+aaa' };
+    const { io, world } = appPi({ state: { pending } });
+    await expect(afterBoot(io)).resolves.toBe('normal');
+    expect(world.state.pending).toEqual(pending);
+    world.files[RELEASE_ENV] = 'KIOSK_RELEASE_REF=dev\nKIOSK_RELEASE_COMMIT=zzz\nKIOSK_RELEASE_OS=os1\n';
+    await expect(apply(io)).resolves.toBe('none');
+    expect(world.state.pending).toBeNull();
+    expect(world.apps.inUse).toBeNull();
+  });
+
+  it('does nothing while another updater runs', async () => {
+    const { io, world } = appPi();
+    world.apps.isLocked = true;
+    await expect(run(io, false)).resolves.toBeNull();
+    expect(world.apps.fetched).toEqual([]);
+    expect(world.log).toEqual(['An update is already being installed.']);
   });
 });

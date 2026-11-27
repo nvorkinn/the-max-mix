@@ -19,9 +19,10 @@ app on `127.0.0.1:7341`. It does two jobs:
 
 ## The web app
 
-The built web app is part of the Pi's image, at `/opt/the-max-mix/app`, and a new one comes only with a reboot into a
-new slot, so a page that is already open never loses a file to a newer release. This service serves it
-(`KIOSK_APP_DIR`, `app-files.ts`) on `http://127.0.0.1:7341/`, which lets the kiosk start the app with no internet:
+The built web app is part of the Pi's image, at `/opt/the-max-mix/app`. A new one comes with a reboot into a new slot,
+or, when a release changed nothing else, onto `/data/the-max-mix/apps` with a restart of the kiosk and of this service
+([Updates](#updates)). Either way this service keeps the folder it started with, so a page that is already open never
+loses a file to a newer release. It serves it (`KIOSK_APP_DIR`, set by `app-node` to the app in use; `app-files.ts`) on `http://127.0.0.1:7341/`, which lets the kiosk start the app with no internet:
 `index.html` and the top-level files are checked again on every load, and the hashed files under `assets/` are kept
 for good. Every file goes out with `X-Content-Type-Options`, `Referrer-Policy` and `X-Frame-Options`. A dev or branch
 Pi serves the app built from its own commit.
@@ -336,6 +337,18 @@ code path the timer, the screen and `kiosk-rollback` share:
   (`boot-slots.ts` rewrites `autoboot.txt`). A new slot that fails, hangs (hardware watchdog) or panics ends up back on
   the old slot, and its version is never installed again.
 - **Rollback.** `sudo kiosk-rollback` tries the other slot (the previous version) at once and keeps it once healthy.
+- **Only the app changed.** Most releases change just the web app and this service, 26 MB of a 4 GB slot. Each bundle
+  has that app beside it (`….app.tar.gz`), with a manifest (`….app.json`: version, `KIOSK_RELEASE_OS`, size, SHA-256)
+  signed with the bundle's key (`….app.json.sig`). When the manifest is signed and names the running slot's
+  `KIOSK_RELEASE_OS`, Install only downloads and unpacks the app into `/data/the-max-mix/apps/<version>`
+  (`app-store.ts`) and runs its `kiosk-update.ts check` once. Apply then points `/run/the-max-mix/app` at it and
+  restarts this service and the kiosk, with no reboot, and runs the same health check at once: healthy, the app stays
+  and the one before it is kept for a rollback; not healthy, the Pi changes back and never installs that version
+  again. Anything else (another OS, no manifest, a bad signature) takes the whole bundle. An app on `/data` counts
+  only over the slot release it was installed on (`over`), so a new slot starts with its own app; the image's
+  `app-select` decides that at each boot. `kiosk-rollback` goes back to the app before, or to the image's own.
+  On a Pi 5 the download, unpack and change-over took 4 seconds and the kiosk was back about 5 seconds later; the whole
+  bundle took 3 minutes 39 seconds and a reboot.
 
 State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` prints what the channel has.
 

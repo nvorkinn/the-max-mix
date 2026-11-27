@@ -9,6 +9,11 @@
 //   apply    reboot with tryboot into the installed slot (04:30, Restart, or at once on the dev and branch channels).
 //   health   kiosk-health.ts decides after each boot; a tried slot that is not kept is a failed version, never retried.
 //
+// A release that changed only the app (the web app and kiosk-audio) skips all that. Each bundle has the app on its own
+// beside it, with a signed manifest that names the OS it goes with (image/build.sh, KIOSK_RELEASE_OS). When that is the
+// running slot's, install only downloads and unpacks the app onto /data (app-store.ts), and apply changes over to it
+// and restarts the kiosk, with no reboot: the health check runs at once, and a failed one changes back.
+//
 // Versions are `<ref>+<commit>` (v2.53.0+1ada1d2…, dev+1ada1d2…): the bundle manifest's version, and the booted one
 // from the build's release.env.
 import type { Rauc } from './rauc.ts';
@@ -28,8 +33,10 @@ export const KIOSK_ENV = '/data/the-max-mix/kiosk.env';
  * itself. Every slot's config.txt comes from the image, so they are written into it (configWithOwn).
  */
 export const OWN_CONFIG = '/data/the-max-mix/config.txt';
-/** Written by the image build: KIOSK_RELEASE_REF and KIOSK_RELEASE_COMMIT of the running slot. */
+/** Written by the image build: KIOSK_RELEASE_REF, KIOSK_RELEASE_COMMIT and KIOSK_RELEASE_OS of the running slot. */
 export const RELEASE_ENV = '/usr/lib/the-max-mix/release.env';
+/** The same of the app in use, when that is a newer one on /data; the image's own app has none. */
+export const APP_RELEASE_ENV = '/run/the-max-mix/app/release.env';
 /** The updater's own state, on /data so both slots share it. Root writes it; kiosk-audio only reads it. */
 export const STATE_FILE = '/data/the-max-mix/update/state.json';
 /** The timer runs every 2 minutes; a Pi on the stable channel checks only this often. */
@@ -37,6 +44,7 @@ export const STABLE_EVERY_MS = 6 * 60 * 60 * 1000;
 /** How many failed versions are remembered. */
 const MAX_FAILED = 10;
 const SYSTEMCTL = '/usr/bin/systemctl';
+const NODE = '/usr/bin/node';
 /** Logged just before the reboot into a newly installed slot. */
 export const RESTART_LINE = 'Restarting into the update.';
 
@@ -77,9 +85,48 @@ export function parsePointer(text: string): string | null {
   return url.startsWith(DOWNLOADS) && /^\w[\w.-]*\/\w[\w.-]*\.raucb$/.test(url.slice(DOWNLOADS.length)) ? url : null;
 }
 
+/** The app on its own, as its signed manifest beside the bundle names it. */
+export interface AppManifest {
+  version: string;
+  /** KIOSK_RELEASE_OS of the bundle it was built with. */
+  os: string;
+  sha256: string;
+  size: number;
+}
+
+/** The apps on /data (app-store.ts); tests pass fakes. Only `inUse` is for kiosk-audio; the rest needs root. */
+export interface Apps {
+  /** Where `version` is unpacked. */
+  folder: (version: string) => string;
+  /** The app in use: a version on /data, or null for the image's own. */
+  inUse: () => Promise<string | null>;
+  /** The app that was in use before the one on /data now, when that was one on /data too. */
+  previous: () => Promise<string | null>;
+  /** The slot release `version` was put over; null when it is not there. */
+  over: (version: string) => Promise<string | null>;
+  /** Whether a new app was being tried and nothing settled it (the Pi went down meanwhile). */
+  isTrial: () => Promise<boolean>;
+  setTrial: (isTrial: boolean) => Promise<void>;
+  /** Whether `signature` is `text`'s, by the key the bundles are signed with. */
+  isSigned: (text: string, signature: Buffer) => Promise<boolean>;
+  /** Downloads the archive at `url`, checks its size and hash, and unpacks it as `version`, put over `over`. */
+  fetch: (url: string, expected: { sha256: string; size: number }, version: string, over: string) => Promise<void>;
+  /** Makes `version` the app in use (null: the image's own), and notes the one before it. Programs keep theirs until restarted. */
+  use: (version: string | null, previous: string | null) => Promise<void>;
+  /** Removes every app on /data but these. */
+  prune: (keep: string[]) => Promise<void>;
+  /** One updater at a time: false when another holds the lock. */
+  lock: () => Promise<boolean>;
+  unlock: () => Promise<void>;
+}
+
 export interface UpdateState {
-  /** An installed slot waiting for its first boot (`tried` once the tryboot reboot has begun). */
-  pending: { version: string; slot: string; tried: boolean } | null;
+  /**
+   * An installed slot waiting for its first boot (`tried` once the tryboot reboot has begun). With `over`, it is an
+   * app on /data waiting for the kiosk's restart instead: `over` is the slot release it was put over, and `slot` is
+   * empty.
+   */
+  pending: { version: string; slot: string; tried: boolean; over?: string } | null;
   /** Versions that did not pass their first boot, newest last: never installed again. */
   failed: string[];
   /** The bundle last inspected, so it is not read again. */
@@ -99,6 +146,11 @@ export interface UpdateIO {
   writeState: (state: UpdateState) => Promise<void>;
   /** The text of a small file at `url`; null for none (404). Rejects offline. */
   fetchText: (url: string) => Promise<string | null>;
+  /** The same for a small binary file. */
+  fetchBytes: (url: string) => Promise<Buffer | null>;
+  apps: Apps;
+  /** Waits for the kiosk to come up (health.ts): null when it did, else what is wrong. */
+  health: () => Promise<string | null>;
   /** Runs a program; rejects when it fails. */
   run: (argv: string[]) => Promise<void>;
   /** Reboots once into the other slot: the firmware's tryboot. */
@@ -131,12 +183,36 @@ async function readChannel(io: Pick<UpdateIO, 'readText'>): Promise<Channel> {
   return parseChannel(parseEnv((await io.readText(KIOSK_ENV)) ?? '')['KIOSK_UPDATE_CHANNEL']);
 }
 
-/** The running slot's version, from the build's release.env; null when it does not say. */
+/** What a release.env says: the version it names (null when it does not say) and the OS it goes with. */
+async function release(
+  io: Pick<UpdateIO, 'readText'>,
+  file: string
+): Promise<{ version: string | null; os: string | null }> {
+  const env = parseEnv((await io.readText(file)) ?? '');
+  const ref = env['KIOSK_RELEASE_REF'];
+  const commit = env['KIOSK_RELEASE_COMMIT'];
+  return { version: ref && commit ? `${ref}+${commit}` : null, os: env['KIOSK_RELEASE_OS'] ?? null };
+}
+
+/** The running version: the app in use when it came on its own, else the slot's, from the build's release.env. */
 async function bootedVersion(io: Pick<UpdateIO, 'readText'>): Promise<string | null> {
-  const release = parseEnv((await io.readText(RELEASE_ENV)) ?? '');
-  const ref = release['KIOSK_RELEASE_REF'];
-  const commit = release['KIOSK_RELEASE_COMMIT'];
-  return ref && commit ? `${ref}+${commit}` : null;
+  return (await release(io, APP_RELEASE_ENV)).version ?? (await release(io, RELEASE_ENV)).version;
+}
+
+/** A manifest's fields, or null when it is not one. */
+export function parseManifest(text: string): AppManifest | null {
+  try {
+    const { version, os, sha256, size } = JSON.parse(text) as Partial<Record<keyof AppManifest, unknown>>;
+    const isValid =
+      typeof version === 'string' &&
+      typeof os === 'string' &&
+      typeof sha256 === 'string' &&
+      /^[0-9a-f]{64}$/.test(sha256) &&
+      typeof size === 'number';
+    return isValid ? { version, os, sha256, size } : null;
+  } catch {
+    return null;
+  }
 }
 
 interface UpdateStatus {
@@ -205,10 +281,117 @@ async function look(io: UpdateIO, shouldRemember: boolean): Promise<{ checked: C
   return { checked: { ...now, result, latest }, url };
 }
 
+/**
+ * What it takes to get `latest` without its bundle: the archive of its app, when the release differs from the running
+ * slot's in the app alone, or nothing at all (`url` null) when it is the slot's own release. Null when the bundle is
+ * needed: the OS differs, the release has no app on its own, or its manifest is not properly signed.
+ */
+async function appAlone(
+  io: UpdateIO,
+  bundle: string,
+  latest: string,
+  slot: { version: string | null; os: string | null }
+): Promise<{ url: string | null; manifest: AppManifest | null } | null> {
+  if (slot.version === null) return null;
+  if (latest === slot.version) return { url: null, manifest: null };
+  if (slot.os === null) return null;
+  const stem = bundle.slice(0, -'.raucb'.length);
+  const text = await io.fetchText(`${stem}.app.json`);
+  const signature = text === null ? null : await io.fetchBytes(`${stem}.app.json.sig`);
+  if (text === null || signature === null) return null;
+  if (!(await io.apps.isSigned(text, signature))) {
+    io.log('The app on its own is not signed with the update key, so the whole bundle is installed.');
+    return null;
+  }
+  const manifest = parseManifest(text);
+  return manifest?.version === latest && manifest.os === slot.os ? { url: `${stem}.app.tar.gz`, manifest } : null;
+}
+
+/** Puts `version`'s app on /data, checks that its updater starts, and notes it as waiting for the kiosk's restart. */
+async function installApp(
+  io: UpdateIO,
+  app: { url: string | null; manifest: AppManifest | null },
+  version: string,
+  over: string
+): Promise<void> {
+  io.log(`Installing ${version} (only the app changed).`);
+  if (app.url !== null && app.manifest !== null) {
+    io.log('Update progress: 10% Downloading the app');
+    await io.apps.fetch(app.url, app.manifest, version, over);
+    io.log('Update progress: 80% Checking the app');
+    // The updater is part of the app: one that cannot even look for updates would leave the Pi with no way forward.
+    await io.run([NODE, `${io.apps.folder(version)}/kiosk-audio/kiosk-update.ts`, 'check']);
+  }
+  io.log('Update progress: 100% Installing done.');
+  await io.writeState({ ...(await readState(io)), pending: { version, slot: '', tried: false, over } });
+  io.log(`Installed ${version}. It starts with the next restart.`);
+}
+
+/** Changes over to an app (null: the image's own) and restarts what runs it: kiosk-audio and the kiosk. */
+async function changeOver(io: UpdateIO, version: string | null, previous: string | null): Promise<void> {
+  await io.apps.use(version, previous);
+  try {
+    await io.run([SYSTEMCTL, '--user', '--machine=kiosk@', 'restart', 'kiosk-audio.service']);
+  } catch {
+    // The kiosk user's session is not up: kiosk.service starts it, and kiosk-audio with it.
+  }
+  await io.run([SYSTEMCTL, 'restart', 'kiosk.service']);
+}
+
+/**
+ * Changes over to the app that waits and restarts the kiosk, then gives it the health check a new slot gets after its
+ * boot. Not healthy: back to the app before it, and the version is never installed again.
+ */
+async function applyApp(
+  io: UpdateIO,
+  state: UpdateState,
+  pending: NonNullable<UpdateState['pending']>
+): Promise<'restarting' | 'none'> {
+  const slot = (await release(io, RELEASE_ENV)).version;
+  if (slot === null || pending.over !== slot) {
+    // The Pi runs another slot than the one this app was put over.
+    await io.writeState({ ...state, pending: null });
+    return 'none';
+  }
+  const before = await io.apps.inUse();
+  const older = await io.apps.previous();
+  const next = pending.version === slot ? null : pending.version;
+  await io.writeState({ ...state, pending: { ...pending, tried: true } });
+  io.log(RESTART_LINE);
+  await io.apps.setTrial(true);
+  let wrong: string | null;
+  try {
+    await changeOver(io, next, before);
+    wrong = await io.health();
+  } catch (error) {
+    // A kiosk that does not even restart is not healthy either.
+    wrong = error instanceof Error ? error.message : String(error);
+  }
+  if (wrong === null) {
+    await io.apps.setTrial(false);
+    await io.apps.prune([next, before].filter(version => version !== null));
+    await io.writeState({ ...(await readState(io)), pending: null });
+    io.log(`Kept ${pending.version}.`);
+    return 'restarting';
+  }
+  io.log(`Not healthy: ${wrong}`);
+  io.log(`Going back to the previous version; ${pending.version} is not installed again.`);
+  await changeOver(io, before, older);
+  await io.apps.setTrial(false);
+  await io.writeState({ ...withFailed(await readState(io), pending.version), pending: null });
+  return 'restarting';
+}
+
 /** Installs the channel's bundle into the other slot when it is newer; the progress goes to the log as it comes. */
 async function install(io: UpdateIO): Promise<Checked> {
   const { checked, url } = await look(io, true);
   if (url === null || checked.latest === null || checked.result !== 'available') return checked;
+  const own = await release(io, RELEASE_ENV);
+  const app = await appAlone(io, url, checked.latest, own);
+  if (app !== null && own.version !== null) {
+    await installApp(io, app, checked.latest, own.version);
+    return { ...checked, result: 'installed', installed: checked.latest };
+  }
   io.log(`Installing ${checked.latest}.`);
   let shown = -1;
   await io.rauc.install(url, ({ percent, message }) => {
@@ -227,10 +410,14 @@ async function install(io: UpdateIO): Promise<Checked> {
   return { ...checked, result: 'installed', installed: version };
 }
 
-/** Reboots once into the installed slot (tryboot) when one waits: 'restarting', or 'none' when none waits. */
+/**
+ * Reboots once into the installed slot (tryboot) when one waits, or changes over to the app that waits and restarts
+ * the kiosk: 'restarting', or 'none' when nothing waits.
+ */
 export async function apply(io: UpdateIO): Promise<'restarting' | 'none'> {
   const state = await readState(io);
   if (!state.pending || state.pending.tried) return 'none';
+  if (state.pending.over !== undefined) return applyApp(io, state, state.pending);
   await io.writeState({ ...state, pending: { ...state.pending, tried: true } });
   io.log(RESTART_LINE);
   try {
@@ -259,19 +446,45 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
     if (channel === 'stable' && state.checkedAt !== null && io.now() - state.checkedAt < STABLE_EVERY_MS) return null;
     await io.writeState({ ...state, checkedAt: io.now() });
   }
-  if ((await io.rauc.operation()) !== 'idle') {
+  if ((await io.rauc.operation()) !== 'idle' || !(await io.apps.lock())) {
     io.log('An update is already being installed.');
     return null;
   }
-  const done = await install(io);
-  if (done.result === 'up-to-date') {
-    io.log(`Up to date (${done.current ?? 'unknown version'}).`);
-  } else if (done.result === 'failed') {
-    io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
-  } else if (channel !== 'stable' && done.result === 'installed') {
-    await apply(io);
+  try {
+    const done = await install(io);
+    if (done.result === 'up-to-date') {
+      io.log(`Up to date (${done.current ?? 'unknown version'}).`);
+    } else if (done.result === 'failed') {
+      io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
+    } else if (channel !== 'stable' && done.result === 'installed') {
+      await apply(io);
+    }
+    return done;
+  } finally {
+    await io.apps.unlock();
   }
-  return done;
+}
+
+/**
+ * Settles an app on /data that was being tried, or waited, when the Pi went down. One still marked as on trial never
+ * passed its health check: the image's app-select already left it aside at this boot, and it counts as failed.
+ */
+async function settleApp(io: UpdateIO): Promise<void> {
+  const state = await readState(io);
+  const pending = state.pending?.over === undefined ? null : state.pending;
+  if (await io.apps.isTrial()) {
+    const inUse = await io.apps.inUse();
+    await io.apps.use(inUse, null);
+    await io.apps.setTrial(false);
+    if (pending === null) return;
+    io.log(`${pending.version} was still being tried when the Pi went down. It is not installed again.`);
+    await io.writeState({ ...withFailed(state, pending.version), pending: null });
+    return;
+  }
+  if (!pending?.tried) return;
+  // The change-over ended, and only the note was left behind.
+  const isKept = (await bootedVersion(io)) === pending.version;
+  await io.writeState({ ...(isKept ? state : withFailed(state, pending.version)), pending: null });
 }
 
 /**
@@ -280,10 +493,12 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
  * Pi did not come back up on (a hang, a panic, a failed health check) is a failed version.
  */
 export async function afterBoot(io: UpdateIO): Promise<'trial' | 'normal'> {
+  await settleApp(io);
   const state = await readState(io);
   const pending = state.pending;
-  // A trial boot counts even with no note, e.g. after an install by hand with `rauc install`.
-  if (!pending?.tried) return (await io.isTrialBoot()) ? 'trial' : 'normal';
+  // A trial boot counts even with no note, e.g. after an install by hand with `rauc install`. An app that waits on
+  // /data has nothing to do with the boot.
+  if (!pending?.tried || pending.over !== undefined) return (await io.isTrialBoot()) ? 'trial' : 'normal';
   const booted = await io.rauc.bootSlot();
   if (booted === pending.slot && (await io.isTrialBoot())) return 'trial';
   if (booted === pending.slot) {
@@ -320,9 +535,21 @@ export async function giveUp(io: UpdateIO, boot: 'trial' | 'normal', reason: str
 
 /**
  * kiosk-rollback: tries the other slot (it still holds the previous version) at once, and keeps it once it is healthy.
- * The version left behind counts as failed, so the timer does not put it back.
+ * When the running app came on its own, the previous version is the app before it, with no reboot. The version left
+ * behind counts as failed, so the timer does not put it back.
  */
 export async function rollback(io: UpdateIO): Promise<void> {
+  const inUse = await io.apps.inUse();
+  if (inUse !== null) {
+    // The version before this one differed in the app alone: back to that app, or to the image's own.
+    const slot = (await release(io, RELEASE_ENV)).version;
+    const previous = await io.apps.previous();
+    const back = previous !== null && previous !== inUse && (await io.apps.over(previous)) === slot ? previous : null;
+    await io.writeState({ ...withFailed(await readState(io), inUse), pending: null });
+    io.log(`Going back from ${inUse} to ${back ?? slot ?? 'the previous version'}.`);
+    await changeOver(io, back, null);
+    return;
+  }
   const booted = await io.rauc.bootSlot();
   const other = (await io.rauc.slots()).find(slot => slot.bootname !== null && slot.bootname !== booted);
   if (!other?.bootname) throw new Error('There is no other slot to go back to.');
