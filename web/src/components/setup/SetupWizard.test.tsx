@@ -1,7 +1,15 @@
-import { act, render, screen } from '@testing-library/react';
+// cspell:ignore GZZLUOVL
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DeviceLocation, TouchscreenConfig } from 'countdown-api';
+import locate from '../../../../vendor/countdown-api/src/countdown_api/fixtures/locate.json';
+import touchscreen from '../../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import userEvent from '../../test/user';
-import { deviceCredentials, finishSetup } from '../../countdown/registration';
+import { loadDeviceConfig, saveConfigSection } from '../../countdown/config';
+import { findPostcode } from '../../countdown/location';
+import { deviceCredentials, finishLocation, finishSetup, isLocationSet } from '../../countdown/registration';
+import { locatePlace, nearbyStops, rememberStop, SearchFailed } from '../../countdown/search';
+import type { NearbyStop, StopResult } from '../../countdown/search';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
@@ -13,16 +21,31 @@ import { hasCamera } from '../../utils/kioskCamera';
 import { joinWifi } from '../../utils/kioskWifi';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
+import { LOOKING_MS } from './SetupLocation';
 import SetupWizard, { NETWORK_POLL_MS } from './SetupWizard';
 import { useRegistration } from './useRegistration';
+import { useSetupLocation } from './useSetupLocation';
 
 vi.mock('../../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../../countdown/registration')>()),
   deviceCredentials: vi.fn(),
+  finishLocation: vi.fn(),
   finishSetup: vi.fn(),
+  isLocationSet: vi.fn(),
   pairingToken: vi.fn(() => Promise.resolve('a-token'))
 }));
 vi.mock('../../countdown/server', () => ({ countdownServer: () => 'https://countdown.build' }));
+vi.mock('../../countdown/config', () => ({ loadDeviceConfig: vi.fn(), saveConfigSection: vi.fn() }));
+vi.mock('../../countdown/location', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../countdown/location')>()),
+  findPostcode: vi.fn()
+}));
+vi.mock('../../countdown/search', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../countdown/search')>()),
+  locatePlace: vi.fn(),
+  nearbyStops: vi.fn(),
+  rememberStop: vi.fn()
+}));
 vi.mock('../../hooks/usePhonePairing', () => ({ usePhonePairing: vi.fn() }));
 vi.mock('../../hooks/usePhoneSignIn', () => ({ usePhoneSignIn: vi.fn() }));
 vi.mock('../../hooks/useScreenSleep', () => ({ useScreenSleep: vi.fn() }));
@@ -55,6 +78,22 @@ vi.mock('../settings/WifiSettings', () => ({
     </div>
   )
 }));
+vi.mock('../settings/StopSearch', () => ({
+  default: ({ onAdd, onClose }: { onAdd: (stop: StopResult) => void; onClose: () => void }) => (
+    <div>
+      <button type="button" onClick={() => onAdd(OVAL)}>
+        add-oval
+      </button>
+      <button type="button" onClick={onClose}>
+        close-search
+      </button>
+    </div>
+  )
+}));
+vi.mock('./useSetupLocation', async importOriginal => ({
+  ...(await importOriginal<typeof import('./useSetupLocation')>()),
+  useSetupLocation: vi.fn()
+}));
 vi.mock('./useRegistration', async importOriginal => ({
   ...(await importOriginal<typeof import('./useRegistration')>()),
   useRegistration: vi.fn()
@@ -72,6 +111,43 @@ const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
 const CREDENTIALS = { deviceId: '0a1b2c3d4e5f', secret: 'a-secret' };
 const KIOSK = 'The Max Mix 4';
 const CODE = 'QR code to set up this screen on your phone';
+
+// What the background lookup found: Walworth's postcodes, and two stops near it.
+const LOCATION = locate.locate as DeviceLocation;
+const westmoreland = (letter: string, distance: number): NearbyStop => ({
+  key: `tfl:490014501${letter}`,
+  name: 'Westmoreland Road',
+  detail: '40, 68',
+  letter,
+  indent: false,
+  value: { source: 'tfl', id: `490014501${letter}` },
+  distance
+});
+const NEAREST = westmoreland('K', 136);
+const NEAR = [NEAREST, westmoreland('M', 1240)];
+const KENNINGTON: NearbyStop = {
+  key: 'tfl:940GZZLUKNG',
+  name: 'Kennington Underground Station',
+  detail: 'Northern',
+  indent: false,
+  value: { source: 'tfl', id: '940GZZLUKNG' },
+  distance: 90
+};
+const OVAL: StopResult = {
+  key: 'tfl:940GZZLUOVL',
+  name: 'Oval',
+  detail: 'Northern',
+  indent: false,
+  value: { source: 'tfl', id: '940GZZLUOVL' }
+};
+const CONFIG = touchscreen.config as TouchscreenConfig;
+const PLACE = {
+  key: '2643743',
+  name: 'London',
+  detail: 'United Kingdom',
+  indent: false,
+  value: { location: 'London', key: 'london-gb-2643743' }
+};
 
 const pairing = {
   pairing: { state: 'idle' } as const,
@@ -96,6 +172,8 @@ beforeEach(() => {
   vi.mocked(hasCamera).mockResolvedValue(false);
   vi.mocked(joinWifi).mockResolvedValue({ ok: true });
   onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
+  vi.mocked(isLocationSet).mockReturnValue(true);
+  vi.mocked(useSetupLocation).mockReturnValue(undefined);
 });
 
 afterEach(() => {
@@ -118,6 +196,7 @@ describe('SetupWizard', () => {
       'Account',
       'Spotify',
       'Soloist',
+      'Location',
       'Presence'
     ]);
     expect(current()).toBe('Wi-Fi');
@@ -387,5 +466,239 @@ describe('SetupWizard', () => {
     render(<SetupWizard />);
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').every(item => item.classList.contains('is-done'))).toBe(true);
+  });
+
+  it('goes on to Location after Soloist, and back to Wi-Fi from it when the kiosk loses its network', async () => {
+    vi.mocked(isLocationSet).mockReturnValue(false);
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+    const { rerender } = render(<SetupWizard />);
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
+    rerender(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(current()).toBe('Location');
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Wi-Fi');
+  });
+});
+
+describe('The Location chapter', () => {
+  beforeEach(() => {
+    vi.mocked(isLocationSet).mockReturnValue(false);
+    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: NEAR });
+    vi.mocked(loadDeviceConfig).mockResolvedValue(CONFIG);
+    vi.mocked(saveConfigSection).mockImplementation((section, value) =>
+      Promise.resolve({ saved: { ...CONFIG, [section]: value } })
+    );
+    vi.mocked(locatePlace).mockResolvedValue(PLACE);
+    vi.mocked(nearbyStops).mockResolvedValue([KENNINGTON]);
+    vi.mocked(findPostcode).mockResolvedValue(locate.near_query);
+  });
+
+  const postcodes = () => within(screen.getByRole('list', { name: 'Postcode' })).getAllByRole('button');
+  const field = () => screen.getByRole('textbox', { name: 'Not listed? Type your postcode' });
+
+  it('looks in the background once the kiosk is registered and online, and not once it is done', () => {
+    const { unmount } = render(<SetupWizard />);
+    expect(current()).toBe('Location');
+    expect(useSetupLocation).toHaveBeenLastCalledWith(true);
+    unmount();
+    vi.mocked(isLocationSet).mockReturnValue(true);
+    render(<SetupWizard />);
+    expect(useSetupLocation).toHaveBeenLastCalledWith(false);
+  });
+
+  it('offers the postcodes found as buttons, then a text box for one not listed', () => {
+    render(<SetupWizard />);
+    expect(postcodes().map(button => button.textContent)).toEqual(LOCATION.postcodes.map(near => near.postcode));
+    expect(field()).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+  });
+
+  it('offers ten postcodes at most', () => {
+    const [nearest] = LOCATION.postcodes;
+    const many = Array.from({ length: 12 }, (_, index) => ({
+      postcode: `SE17 ${index}AA`,
+      latitude: nearest?.latitude ?? 0,
+      longitude: nearest?.longitude ?? 0,
+      distance: index * 10,
+      country: 'GB' as const
+    }));
+    vi.mocked(useSetupLocation).mockReturnValue({ location: { ...LOCATION, postcodes: many }, stops: NEAR });
+    render(<SetupWizard />);
+    expect(postcodes()).toHaveLength(10);
+  });
+
+  it('waits with a spinner while the lookup runs, for 15 s at most, then offers only the text box', async () => {
+    vi.mocked(useSetupLocation).mockReturnValue(undefined);
+    const { rerender } = render(<SetupWizard />);
+    expect(screen.getByRole('status', { name: 'Finding nearby postcodes' })).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(LOOKING_MS));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your postcode' })).toBeInTheDocument();
+    // Found late after all.
+    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: NEAR });
+    rerender(<SetupWizard />);
+    expect(postcodes()).toHaveLength(LOCATION.postcodes.length);
+  });
+
+  it('offers only the text box when nothing was found', () => {
+    vi.mocked(useSetupLocation).mockReturnValue(null);
+    render(<SetupWizard />);
+    expect(screen.queryByRole('list', { name: 'Postcode' })).not.toBeInTheDocument();
+    expect(screen.getByText('Type your postcode. It sets the weather and the local notices.')).toBeInTheDocument();
+  });
+
+  it('skips the whole chapter, saving nothing', async () => {
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(finishLocation).toHaveBeenCalled();
+    expect(current()).toBe('Presence');
+    expect(saveConfigSection).not.toHaveBeenCalled();
+  });
+
+  it('saves a postcode picked and the weather at it, then lists the stops found near, none ticked', async () => {
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    const [nearest] = LOCATION.postcodes;
+    await screen.findByText('Tap the stops to show departures from.');
+    expect(loadDeviceConfig).toHaveBeenCalled();
+    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
+      postcode: 'SE17 2PU',
+      country: 'GB',
+      address: null
+    });
+    expect(locatePlace).toHaveBeenCalledExactlyOnceWith(nearest);
+    expect(saveConfigSection).toHaveBeenCalledWith('weather', PLACE.value);
+    expect(findPostcode).not.toHaveBeenCalled();
+    // The stops found in the background, near enough: not asked for again.
+    expect(nearbyStops).not.toHaveBeenCalled();
+    const stops = within(screen.getByRole('list', { name: 'Stops nearby' })).getAllByRole('button');
+    expect(stops.map(stop => stop.textContent)).toEqual([
+      'Westmoreland RoadStop K40, 68140 m',
+      'Westmoreland RoadStop M40, 681.2 km'
+    ]);
+    expect(stops.every(stop => stop.getAttribute('aria-pressed') === 'false')).toBe(true);
+  });
+
+  it('saves the stops ticked, keeping how they are grouped, and names them', async () => {
+    vi.mocked(loadDeviceConfig).mockResolvedValue({ ...CONFIG, arrivals: { stops: [], group_by_route: true } });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    const list = await screen.findByRole('list', { name: 'Stops nearby' });
+    const [k, m] = within(list).getAllByRole('button');
+    if (!k || !m) throw new Error('No stops listed');
+    await userEvent.click(k);
+    await userEvent.click(m);
+    await userEvent.click(m);
+    expect(k).toHaveAttribute('aria-pressed', 'true');
+    expect(m).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(screen.getByRole('button', { name: 'Search for another stop' }));
+    await userEvent.click(screen.getByRole('button', { name: 'add-oval' }));
+    await userEvent.click(screen.getByRole('button', { name: 'close-search' }));
+    expect(screen.getByRole('button', { name: /^Oval/ })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(current()).toBe('Presence'));
+    expect(saveConfigSection).toHaveBeenLastCalledWith('arrivals', {
+      stops: [NEAREST.value, OVAL.value],
+      group_by_route: true
+    });
+    expect(rememberStop).toHaveBeenCalledWith(NEAREST);
+    expect(rememberStop).toHaveBeenCalledWith(OVAL);
+    expect(finishLocation).toHaveBeenCalled();
+  });
+
+  it('goes on with no stops ticked, saving none', async () => {
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(current()).toBe('Presence');
+    expect(saveConfigSection).not.toHaveBeenCalledWith('arrivals', expect.anything());
+  });
+
+  it('looks up a postcode typed, and asks for the stops near it when it is across town', async () => {
+    vi.mocked(findPostcode).mockResolvedValue({ latitude: 51.5007, longitude: -0.1246 });
+    render(<SetupWizard />);
+    const use = screen.getByRole('button', { name: 'Use' });
+    expect(use).toBeDisabled();
+    await userEvent.type(field(), 'not one');
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Enter a UK or Norwegian postcode.')).toBeInTheDocument();
+    expect(use).toBeDisabled();
+    await userEvent.type(field(), 'sw1a2aa');
+    expect(field()).toHaveAttribute('aria-invalid', 'false');
+    await userEvent.click(use);
+    await screen.findByRole('list', { name: 'Stops nearby' });
+    expect(findPostcode).toHaveBeenCalledExactlyOnceWith('SW1A 2AA');
+    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
+      postcode: 'SW1A 2AA',
+      country: 'GB',
+      address: null
+    });
+    expect(locatePlace).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 });
+    expect(nearbyStops).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 }, expect.any(AbortSignal));
+    expect(screen.getByRole('button', { name: /^Kennington/ })).toHaveTextContent('90 m');
+  });
+
+  it('uses the stops found in the background for a postcode typed near them', async () => {
+    render(<SetupWizard />);
+    await userEvent.type(field(), 'SE17 2PU');
+    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
+    await screen.findByRole('list', { name: 'Stops nearby' });
+    expect(nearbyStops).not.toHaveBeenCalled();
+  });
+
+  it('asks for the stops near the postcode when none were found in the background', async () => {
+    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: null });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    expect(await screen.findByRole('button', { name: /^Kennington/ })).toBeInTheDocument();
+    expect(nearbyStops).toHaveBeenCalledOnce();
+  });
+
+  it('says so when there is no such postcode, and stays', async () => {
+    vi.mocked(findPostcode).mockResolvedValue('unknown');
+    render(<SetupWizard />);
+    await userEvent.type(field(), 'ZZ1 1ZZ');
+    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t find that postcode.');
+    expect(saveConfigSection).not.toHaveBeenCalled();
+  });
+
+  it('saves a postcode typed that could not be looked up, then offers only the search', async () => {
+    vi.mocked(findPostcode).mockResolvedValue('failed');
+    render(<SetupWizard />);
+    await userEvent.type(field(), '0150');
+    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
+    expect(await screen.findByText('Search for the stops to show departures from.')).toBeInTheDocument();
+    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
+      postcode: '0150',
+      country: 'NO',
+      address: CONFIG.notice_board.address
+    });
+    expect(locatePlace).not.toHaveBeenCalled();
+    expect(nearbyStops).not.toHaveBeenCalled();
+    expect(screen.queryByRole('list', { name: 'Stops nearby' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Search for a stop' })).toBeInTheDocument();
+  });
+
+  it('goes on when the weather cannot be found, and offers only the search with no stops near', async () => {
+    vi.mocked(locatePlace).mockRejectedValue(new SearchFailed());
+    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: [] });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    expect(await screen.findByRole('button', { name: 'Search for a stop' })).toBeInTheDocument();
+    expect(saveConfigSection).not.toHaveBeenCalledWith('weather', expect.anything());
+  });
+
+  it('says so when the postcode cannot be saved, and stays', async () => {
+    vi.mocked(saveConfigSection).mockResolvedValue({ error: 'failed' });
+    render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save. Try again in a moment.');
+    expect(postcodes()).toHaveLength(LOCATION.postcodes.length);
+    expect(locatePlace).not.toHaveBeenCalled();
   });
 });

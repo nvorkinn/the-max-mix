@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AudioLines, Bluetooth, Check, KeyRound, LoaderCircle, UserRound, Wifi } from 'lucide-react';
+import { AudioLines, Bluetooth, Check, KeyRound, LoaderCircle, MapPin, UserRound, Wifi } from 'lucide-react';
 import {
   deviceCredentials,
   deviceSecret,
+  finishLocation,
   finishSetup,
+  isLocationSet,
   pairingPageUrl,
   pairingToken
 } from '../../countdown/registration';
@@ -34,15 +36,17 @@ import type { ReadNetwork } from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
 import OpenBluetooth from './OpenBluetooth';
 import PickInSpotify from './PickInSpotify';
+import SetupLocation from './SetupLocation';
 import ShareWifiCode from './ShareWifiCode';
 import { useRegistration } from './useRegistration';
+import { useSetupLocation } from './useSetupLocation';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
 export const NETWORK_POLL_MS = 3000;
 /** The kiosk counts as off its network once it has said so this many times running: one answer may be a blip. */
 const LOST_AFTER = 2;
 
-const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'presence'] as const;
+const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'location', 'presence'] as const;
 type Chapter = (typeof CHAPTERS)[number];
 
 const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
@@ -50,6 +54,7 @@ const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
   account: <UserRound className="w-6 h-6 shrink-0" aria-hidden="true" />,
   spotify: <SpotifyIcon className="w-6 h-6 shrink-0" />,
   soloist: <KeyRound className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  location: <MapPin className="w-6 h-6 shrink-0" aria-hidden="true" />,
   presence: <Bluetooth className="w-6 h-6 shrink-0" aria-hidden="true" />
 };
 
@@ -311,7 +316,7 @@ function Presence({
  *
  * - Wi-Fi: on a kiosk with a camera, showing it the QR code a phone shares its network with; otherwise, or from the
  *   line under that, every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
- *   Setup comes back to it if the kiosk loses its network before Soloist is done.
+ *   Setup comes back to it if the kiosk loses its network before Location is done.
  * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once, on
  *   Account; Spotify and Soloist only say what happens on the phone, with the code behind a line for whoever lost the
  *   page (OnPhone). Once it is scanned, their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
@@ -319,7 +324,11 @@ function Presence({
  *   an owner, then starts the Spotify sign-in, then asks for the key code, and ticks each chapter as it lands.
  * - Soloist has a second page: the key only starts it, and it signs in to their Spotify account the first time they
  *   pick the kiosk in Spotify's device list on their phone. The chapter is ticked once Soloist says it is signed in.
- *   Having got there, the chapter says so, and Presence opens at Continue.
+ *   Having got there, the chapter says so, and Location opens at Continue.
+ * - Location: the postcode, from up to ten found near the kiosk or typed, which sets the notice board and the weather,
+ *   then the stops near it for the Countdown, none ticked until tapped (SetupLocation). Where the kiosk is was found in
+ *   the background since it became someone's and got online (useSetupLocation), from the Wi-Fi networks the Pi sees,
+ *   with the stops near there, so the owner seldom waits for it. Skip leaves all of it for Settings.
  * - Presence: the phone is paired over Bluetooth, the scan starting only once they have Bluetooth open and tap OK.
  *
  * Pairing and signing in reload the page, so every chapter's state is read from what the kiosk keeps. Done marks the
@@ -391,17 +400,25 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [phonePaired, setPhonePaired] = useState(person !== undefined && person.phoneAddress !== '');
   const markPaired = useCallback(() => setPhonePaired(true), []);
   const address = useSetupAddress();
+  const [locationDone, setLocationDone] = useState(isLocationSet);
+  // Found in the background from the moment the kiosk is someone's and online, while the owner is busy on their phone.
+  const location = useSetupLocation(registered && wifiDone && !locationDone);
+  const finishLocationChapter = useCallback(() => {
+    finishLocation();
+    setLocationDone(true);
+  }, []);
 
   const done: Record<Chapter, boolean> = {
     wifi: wifiDone,
     account: registered,
     spotify: person !== undefined,
     soloist: isSoloistSet && !isSayingSoloistSet,
+    location: locationDone,
     presence: phonePaired
   };
-  // Account, Spotify and Soloist all happen over the network. Off it, they would wait for ever, so setup goes back
-  // to the Wi-Fi chapter, and picks up where it was once the kiosk is on a network again. Presence needs none.
-  if (wifiDone && missed >= LOST_AFTER && !(done.account && done.spotify && done.soloist)) {
+  // Account, Spotify, Soloist and Location all happen over the network. Off it, they would wait for ever, so setup goes
+  // back to the Wi-Fi chapter, and picks up where it was once the kiosk is on a network again. Presence needs none.
+  if (wifiDone && missed >= LOST_AFTER && !(done.account && done.spotify && done.soloist && done.location)) {
     setWifiDone(false);
     setScanned(null);
   }
@@ -436,6 +453,8 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     ) : (
       <WifiSettings wifi={wifi} onJoined={recheckWifi} />
     );
+  } else if (current === 'location') {
+    page = <SetupLocation found={location} onDone={finishLocationChapter} />;
   } else if (current === 'presence' && person) {
     page = <Presence person={person} isPaired={phonePaired} onPaired={markPaired} onDone={finish} />;
   } else if (current === 'soloist' && isSayingSoloistSet) {

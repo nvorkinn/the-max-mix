@@ -9,10 +9,13 @@ import {
   getArrivals,
   locatePlace as locatePlaceRoute,
   searchPlaces as searchPlacesRoute,
-  searchStops as searchStopsRoute
+  searchStops as searchStopsRoute,
+  stopsNear
 } from '../../../vendor/countdown-api/src/countdown_api/client';
 import type { Client, Result } from '../../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from './config';
+import { mockLocation } from './location';
+import type { Position } from './location';
 
 // Each stop's name, line under it and (a London bus stop's) letter. A new key, not maxmix.stopNames: those were kept
 // before the letter was, with "Stop K" written in the line instead, so the kiosk learns its stops again.
@@ -33,6 +36,8 @@ export interface SearchResult<V = unknown> {
 }
 
 export type StopResult = SearchResult<DepartureStop>;
+/** A stop near a position, and how far from it it is, in metres. */
+export type NearbyStop = StopResult & { distance: number };
 export type PlaceResult = SearchResult<Weather>;
 
 /** The search couldn't be made: the kiosk isn't registered, or the server refused or couldn't be reached. */
@@ -122,22 +127,42 @@ function currentPosition(): Promise<{ latitude: number; longitude: number } | nu
 }
 
 /**
- * The town or city the kiosk is in, for the weather: the one at the browser's position, or where countdown-server
- * places its IP when the browser has none (a Pi has no GPS). Null when neither can tell. Rejects with SearchFailed when
- * the server can't be asked.
+ * The town or city the kiosk is in, for the weather: the one at `at` when given (the setup wizard's postcode), else at
+ * the browser's position, or where countdown-server places its IP when the browser has none (a Pi has no GPS). Null
+ * when none can tell. Rejects with SearchFailed when the server can't be asked.
  */
-export async function locatePlace(): Promise<PlaceResult | null> {
+export async function locatePlace(at?: Position): Promise<PlaceResult | null> {
   if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
     const [here] = await mockAnswer('here');
     return here ? fromPlace(here) : null;
   }
   const client = serverClient();
   if (!client) throw new SearchFailed();
-  const position = await currentPosition();
+  const position = at ?? (await currentPosition());
   const answer = await locatePlaceRoute(client, position ?? {}).catch(() => null);
   if (!answer?.data) throw new SearchFailed();
   const [here] = answer.data;
   return here ? fromPlace(here) : null;
+}
+
+/**
+ * The stations and stops nearest a position, nearest first, each with how far it is; none outside TfL's area. Rejects
+ * with SearchFailed when it can't search.
+ */
+export async function nearbyStops(at: Position, signal?: AbortSignal): Promise<NearbyStop[]> {
+  let found;
+  if (import.meta.env.VITE_COUNTDOWN_CONFIG === 'mock') {
+    const fixture = await mockLocation();
+    found = fixture.stops_near;
+  } else {
+    const client = serverClient();
+    if (!client) throw new SearchFailed();
+    const query = { latitude: at.latitude, longitude: at.longitude };
+    const answer = await stopsNear(client, query, { ...(signal && { signal }) }).catch(() => null);
+    if (!answer?.data) throw new SearchFailed();
+    found = answer.data;
+  }
+  return found.map(result => ({ ...fromStop(result), distance: result.distance }));
 }
 
 type StopNames = Record<string, { name: string; detail: string; letter?: string }>;
