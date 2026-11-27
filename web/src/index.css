@@ -3399,7 +3399,7 @@ body:has(.app-dialog[open]) {
   transition: color 300ms;
 }
 /*
-  Synced lyrics fill the panel with about three lines either side of the current one, so the type is sized from the
+  Synced lyrics fill the panel with about two lines above the current one and four below it, so the type is sized from the
   panel's height, and from its width so that a wide panel does not wrap every line. Every line keeps that size; a line lights up when it is reached and stays lit, so the next line is
   always where the eye left it.
 */
