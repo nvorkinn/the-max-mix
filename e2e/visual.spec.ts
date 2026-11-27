@@ -125,7 +125,7 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       // The names the kiosk kept when it added the stops (the config has only their ids).
       await page.addInitScript(() => {
         localStorage.setItem(
-          'maxmix.stopNames',
+          'maxmix.savedStops',
           JSON.stringify({
             'entur:NSR:StopPlace:337': {
               name: 'Oslo S',

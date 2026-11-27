@@ -177,7 +177,7 @@ describe('describeStop', () => {
   });
 
   it('shows the id when the names kept are unreadable, or storage is unavailable', () => {
-    localStorage.setItem('maxmix.stopNames', '{');
+    localStorage.setItem('maxmix.savedStops', '{');
     expect(describeStop({ source: 'tfl', id: '490000077E' })).toEqual({ name: '490000077E', detail: 'TfL' });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Quota exceeded');

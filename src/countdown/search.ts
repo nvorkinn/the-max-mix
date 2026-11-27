@@ -14,7 +14,9 @@ import {
 import type { Client, Result } from '../../vendor/countdown-api/src/countdown_api/client';
 import { serverClient } from './config';
 
-const STOP_NAMES_KEY = 'maxmix.stopNames';
+// Each stop's name, line under it and (a London bus stop's) letter. A new key, not maxmix.stopNames: those were kept
+// before the letter was, with "Stop K" written in the line instead, so the kiosk learns its stops again.
+const STOP_NAMES_KEY = 'maxmix.savedStops';
 
 /** One thing a search found, as the search dialog lists it, and what picking it saves. */
 export interface SearchResult<V = unknown> {
