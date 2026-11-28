@@ -78,11 +78,6 @@ export class TabletStream {
     this.start = start;
   }
 
-  /** How many speakers listen now. */
-  get count(): number {
-    return this.listeners.size;
-  }
-
   /** Sends one frame of audio to every listener. */
   private send(pcm: Buffer): void {
     for (const listener of this.listeners) {
@@ -127,6 +122,11 @@ export class TabletStream {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     this.pending = Buffer.alloc(0);
+  }
+
+  /** How many speakers listen now. */
+  get count(): number {
+    return this.listeners.size;
   }
 
   /** Answers GET or HEAD of STREAM_PATH; anything else is 404. */
