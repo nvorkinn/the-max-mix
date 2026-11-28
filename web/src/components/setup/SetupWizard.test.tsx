@@ -1,5 +1,5 @@
-// cspell:ignore GZZLUOVL
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+// cspell:ignore GZZLUWSM
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DeviceLocation, TouchscreenConfig } from 'countdown-api';
 import locate from '../../../../vendor/countdown-api/src/countdown_api/fixtures/locate.json';
@@ -9,7 +9,7 @@ import { loadDeviceConfig, saveConfigSection } from '../../countdown/config';
 import { findPostcode } from '../../countdown/location';
 import { deviceCredentials, finishLocation, finishSetup, isLocationSet } from '../../countdown/registration';
 import { locatePlace, nearbyStops, rememberStop, SearchFailed } from '../../countdown/search';
-import type { NearbyStop, StopResult } from '../../countdown/search';
+import type { NearbyStop } from '../../countdown/search';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
 import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
@@ -78,18 +78,6 @@ vi.mock('../settings/WifiSettings', () => ({
     </div>
   )
 }));
-vi.mock('../settings/StopSearch', () => ({
-  default: ({ onAdd, onClose }: { onAdd: (stop: StopResult) => void; onClose: () => void }) => (
-    <div>
-      <button type="button" onClick={() => onAdd(OVAL)}>
-        add-oval
-      </button>
-      <button type="button" onClick={onClose}>
-        close-search
-      </button>
-    </div>
-  )
-}));
 vi.mock('./useSetupLocation', async importOriginal => ({
   ...(await importOriginal<typeof import('./useSetupLocation')>()),
   useSetupLocation: vi.fn()
@@ -112,34 +100,33 @@ const CREDENTIALS = { deviceId: '0a1b2c3d4e5f', secret: 'a-secret' };
 const KIOSK = 'The Max Mix 4';
 const CODE = 'QR code to set up this screen on your phone';
 
-// What the background lookup found: Walworth's postcodes, and two stops near it.
+// What the background lookup found: Walworth's postcodes, and stops near it.
 const LOCATION = locate.locate as DeviceLocation;
-const westmoreland = (letter: string, distance: number): NearbyStop => ({
+const busStop = (letter: string, distance: number, lines = ['40', '68']): NearbyStop => ({
   key: `tfl:490014501${letter}`,
   name: 'Westmoreland Road',
-  detail: '40, 68',
+  detail: lines.join(', '),
   letter,
   indent: false,
   value: { source: 'tfl', id: `490014501${letter}` },
-  distance
+  distance,
+  mode: 'bus',
+  lines
 });
-const NEAREST = westmoreland('K', 136);
-const NEAR = [NEAREST, westmoreland('M', 1240)];
-const KENNINGTON: NearbyStop = {
-  key: 'tfl:940GZZLUKNG',
-  name: 'Kennington Underground Station',
-  detail: 'Northern',
+const station = (id: string, name: string, distance: number, lines: string[]): NearbyStop => ({
+  key: `tfl:${id}`,
+  name,
+  detail: lines.join(', '),
   indent: false,
-  value: { source: 'tfl', id: '940GZZLUKNG' },
-  distance: 90
-};
-const OVAL: StopResult = {
-  key: 'tfl:940GZZLUOVL',
-  name: 'Oval',
-  detail: 'Northern',
-  indent: false,
-  value: { source: 'tfl', id: '940GZZLUOVL' }
-};
+  value: { source: 'tfl', id },
+  distance,
+  mode: 'tube',
+  lines
+});
+const NEAREST = busStop('K', 136);
+const KENNINGTON = station('940GZZLUKNG', 'Kennington Underground Station', 1062, ['Northern']);
+const NEAR = [NEAREST, busStop('M', 180), KENNINGTON];
+const WESTMINSTER = station('940GZZLUWSM', 'Westminster Underground Station', 90, ['District', 'Circle', 'Jubilee']);
 const CONFIG = touchscreen.config as TouchscreenConfig;
 const PLACE = {
   key: '2643743',
@@ -493,12 +480,15 @@ describe('The Location chapter', () => {
       Promise.resolve({ saved: { ...CONFIG, [section]: value } })
     );
     vi.mocked(locatePlace).mockResolvedValue(PLACE);
-    vi.mocked(nearbyStops).mockResolvedValue([KENNINGTON]);
+    vi.mocked(nearbyStops).mockResolvedValue([WESTMINSTER]);
     vi.mocked(findPostcode).mockResolvedValue(locate.near_query);
   });
 
-  const postcodes = () => within(screen.getByRole('list', { name: 'Postcode' })).getAllByRole('button');
-  const field = () => screen.getByRole('textbox', { name: 'Not listed? Type your postcode' });
+  const nearest = () => screen.getByRole('button', { name: /^SE17 2PU/ });
+  const others = () => within(screen.getByRole('list', { name: 'Or one of these nearby?' })).getAllByRole('button');
+  const field = () => screen.getByRole('textbox', { name: 'What’s your postcode?' });
+  const column = (name: string) => within(screen.getByRole('region', { name })).getAllByRole('button');
+  const typeInstead = () => userEvent.click(screen.getByRole('button', { name: 'Not here? Type it in' }));
 
   it('looks in the background once the kiosk is registered and online, and not once it is done', () => {
     const { unmount } = render(<SetupWizard />);
@@ -510,127 +500,157 @@ describe('The Location chapter', () => {
     expect(useSetupLocation).toHaveBeenLastCalledWith(false);
   });
 
-  it('offers the postcodes found as buttons, then a text box for one not listed', () => {
+  it('asks whether the nearest postcode is theirs, with the others near it under it, alphabetically', () => {
     render(<SetupWizard />);
-    expect(postcodes().map(button => button.textContent)).toEqual(LOCATION.postcodes.map(near => near.postcode));
-    expect(field()).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+    expect(screen.getByText('Is this your postcode?')).toBeInTheDocument();
+    expect(nearest()).toHaveTextContent('Our best guess');
+    expect(others().map(button => button.textContent)).toEqual(
+      LOCATION.postcodes
+        .slice(1)
+        .map(near => near.postcode)
+        .toSorted((a, b) => a.localeCompare(b))
+    );
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument();
   });
 
   it('offers ten postcodes at most', () => {
-    const [nearest] = LOCATION.postcodes;
+    const [first] = LOCATION.postcodes;
     const many = Array.from({ length: 12 }, (_, index) => ({
       postcode: `SE17 ${index}AA`,
-      latitude: nearest?.latitude ?? 0,
-      longitude: nearest?.longitude ?? 0,
+      latitude: first?.latitude ?? 0,
+      longitude: first?.longitude ?? 0,
       distance: index * 10,
       country: 'GB' as const
     }));
     vi.mocked(useSetupLocation).mockReturnValue({ location: { ...LOCATION, postcodes: many }, stops: NEAR });
     render(<SetupWizard />);
-    expect(postcodes()).toHaveLength(10);
+    expect(screen.getByRole('button', { name: /^SE17 0AA/ })).toBeInTheDocument();
+    expect(others()).toHaveLength(9);
   });
 
-  it('waits with a spinner while the lookup runs, for 15 s at most, then offers only the text box', async () => {
+  it('waits with a spinner while the lookup runs, for 15 s at most, then asks them to type it', async () => {
     vi.mocked(useSetupLocation).mockReturnValue(undefined);
     const { rerender } = render(<SetupWizard />);
-    expect(screen.getByRole('status', { name: 'Finding nearby postcodes' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Finding where you are…');
     await act(() => vi.advanceTimersByTimeAsync(LOOKING_MS));
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Your postcode' })).toBeInTheDocument();
-    // Found late after all.
+    expect(field()).toBeInTheDocument();
+    // With nothing found, there is nothing to go back to.
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
+    // Found late after all: typing goes on, undisturbed.
     vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: NEAR });
     rerender(<SetupWizard />);
-    expect(postcodes()).toHaveLength(LOCATION.postcodes.length);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('offers only the text box when nothing was found', () => {
+  it('asks them to type it when nothing was found', () => {
     vi.mocked(useSetupLocation).mockReturnValue(null);
     render(<SetupWizard />);
-    expect(screen.queryByRole('list', { name: 'Postcode' })).not.toBeInTheDocument();
-    expect(screen.getByText('Type your postcode. It sets the weather and the local notices.')).toBeInTheDocument();
+    expect(field()).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument();
   });
 
   it('skips the whole chapter, saving nothing', async () => {
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
     expect(finishLocation).toHaveBeenCalled();
     expect(current()).toBe('Presence');
     expect(saveConfigSection).not.toHaveBeenCalled();
   });
 
-  it('saves a postcode picked and the weather at it, then lists the stops found near, none ticked', async () => {
+  it('saves the postcode picked and the weather at it, then says what the tablet can show, none ticked', async () => {
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
-    const [nearest] = LOCATION.postcodes;
-    await screen.findByText('Tap the stops to show departures from.');
+    await userEvent.click(nearest());
+    await screen.findByText('The tablet can show live bus and Tube times');
+    expect(screen.getByText('Tap the stops you use most.')).toBeInTheDocument();
     expect(loadDeviceConfig).toHaveBeenCalled();
     expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
       postcode: 'SE17 2PU',
       country: 'GB',
       address: null
     });
-    expect(locatePlace).toHaveBeenCalledExactlyOnceWith(nearest);
+    expect(locatePlace).toHaveBeenCalledExactlyOnceWith(LOCATION.postcodes[0]);
     expect(saveConfigSection).toHaveBeenCalledWith('weather', PLACE.value);
     expect(findPostcode).not.toHaveBeenCalled();
     // The stops found in the background, near enough: not asked for again.
     expect(nearbyStops).not.toHaveBeenCalled();
-    const stops = within(screen.getByRole('list', { name: 'Stops nearby' })).getAllByRole('button');
-    expect(stops.map(stop => stop.textContent)).toEqual([
-      'Westmoreland RoadStop K40, 68140 m',
-      'Westmoreland RoadStop M40, 681.2 km'
+    // Stations without "Underground Station", their lines named; bus stops with their letter and routes.
+    expect(column('Stations').map(card => card.textContent)).toEqual(['Kennington1.1 kmNorthern']);
+    expect(column('Bus stops').map(card => card.textContent)).toEqual([
+      'Westmoreland RoadStop K140 m4068',
+      'Westmoreland RoadStop M180 m4068'
     ]);
-    expect(stops.every(stop => stop.getAttribute('aria-pressed') === 'false')).toBe(true);
+    expect([...column('Stations'), ...column('Bus stops')].every(card => card.ariaPressed === 'false')).toBe(true);
   });
 
-  it('saves the stops ticked, keeping how they are grouped, and names them', async () => {
+  it('offers three stations and five bus stops at most, and six of a stop’s routes', async () => {
+    const routes = ['1', '12', '35', '40', '45', '68', '148', '171'];
+    const many = [
+      ...['A', 'B', 'C', 'D', 'E', 'F'].map((letter, index) => busStop(letter, 100 + index, routes)),
+      ...['1', '2', '3', '4'].map(id => station(id, `Station ${id}`, 500, ['Northern']))
+    ];
+    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: many });
+    render(<SetupWizard />);
+    await userEvent.click(nearest());
+    expect(await screen.findByRole('region', { name: 'Bus stops' })).toBeInTheDocument();
+    expect(column('Bus stops')).toHaveLength(5);
+    expect(column('Stations')).toHaveLength(3);
+    expect(column('Bus stops')[0]).toHaveTextContent(/11235404568\+2$/);
+  });
+
+  it('saves the stops ticked, keeping how they are grouped, then says what was set', async () => {
     vi.mocked(loadDeviceConfig).mockResolvedValue({ ...CONFIG, arrivals: { stops: [], group_by_route: true } });
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
-    const list = await screen.findByRole('list', { name: 'Stops nearby' });
-    const [k, m] = within(list).getAllByRole('button');
-    if (!k || !m) throw new Error('No stops listed');
+    await userEvent.click(nearest());
+    await screen.findByRole('region', { name: 'Bus stops' });
+    const [k, m] = column('Bus stops');
+    const [kennington] = column('Stations');
+    if (!k || !m || !kennington) throw new Error('No stops listed');
     await userEvent.click(k);
     await userEvent.click(m);
     await userEvent.click(m);
+    await userEvent.click(kennington);
     expect(k).toHaveAttribute('aria-pressed', 'true');
     expect(m).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(screen.getByRole('button', { name: 'Search for another stop' }));
-    await userEvent.click(screen.getByRole('button', { name: 'add-oval' }));
-    await userEvent.click(screen.getByRole('button', { name: 'close-search' }));
-    expect(screen.getByRole('button', { name: /^Oval/ })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(current()).toBe('Presence'));
+    expect(await screen.findByRole('status')).toHaveTextContent('You’re all set!');
     expect(saveConfigSection).toHaveBeenLastCalledWith('arrivals', {
-      stops: [NEAREST.value, OVAL.value],
+      stops: [NEAREST.value, KENNINGTON.value],
       group_by_route: true
     });
     expect(rememberStop).toHaveBeenCalledWith(NEAREST);
-    expect(rememberStop).toHaveBeenCalledWith(OVAL);
+    expect(rememberStop).toHaveBeenCalledWith(KENNINGTON);
+    expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual(
+      expect.arrayContaining(['SE17 2PU', 'London', '2 stops'])
+    );
+    expect(screen.getByText(/in Settings whenever you like/)).toBeInTheDocument();
+    expect(finishLocation).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(finishLocation).toHaveBeenCalled();
+    expect(current()).toBe('Presence');
   });
 
   it('goes on with no stops ticked, saving none', async () => {
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
+    await userEvent.click(nearest());
     await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    expect(current()).toBe('Presence');
+    expect(await screen.findByText('No stops yet')).toBeInTheDocument();
     expect(saveConfigSection).not.toHaveBeenCalledWith('arrivals', expect.anything());
   });
 
   it('looks up a postcode typed, and asks for the stops near it when it is across town', async () => {
     vi.mocked(findPostcode).mockResolvedValue({ latitude: 51.5007, longitude: -0.1246 });
     render(<SetupWizard />);
-    const use = screen.getByRole('button', { name: 'Use' });
-    expect(use).toBeDisabled();
+    await typeInstead();
+    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
     await userEvent.type(field(), 'not one');
     expect(field()).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Enter a UK or Norwegian postcode.')).toBeInTheDocument();
-    expect(use).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
     await userEvent.type(field(), 'sw1a2aa');
     expect(field()).toHaveAttribute('aria-invalid', 'false');
-    await userEvent.click(use);
-    await screen.findByRole('list', { name: 'Stops nearby' });
+    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
+    expect(await screen.findByRole('region', { name: 'Stations' })).toBeInTheDocument();
     expect(findPostcode).toHaveBeenCalledExactlyOnceWith('SW1A 2AA');
     expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
       postcode: 'SW1A 2AA',
@@ -639,40 +659,51 @@ describe('The Location chapter', () => {
     });
     expect(locatePlace).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 });
     expect(nearbyStops).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 }, expect.any(AbortSignal));
-    expect(screen.getByRole('button', { name: /^Kennington/ })).toHaveTextContent('90 m');
+    expect(column('Stations').map(card => card.textContent)).toEqual(['Westminster90 mDistrictCircleJubilee']);
+    expect(screen.queryByRole('region', { name: 'Bus stops' })).not.toBeInTheDocument();
+  });
+
+  it('goes back from typing to the postcodes found', async () => {
+    render(<SetupWizard />);
+    await typeInstead();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(nearest()).toBeInTheDocument();
   });
 
   it('uses the stops found in the background for a postcode typed near them', async () => {
     render(<SetupWizard />);
+    await typeInstead();
     await userEvent.type(field(), 'SE17 2PU');
     await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    await screen.findByRole('list', { name: 'Stops nearby' });
+    await screen.findByRole('region', { name: 'Bus stops' });
     expect(nearbyStops).not.toHaveBeenCalled();
   });
 
   it('asks for the stops near the postcode when none were found in the background', async () => {
     vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: null });
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
-    expect(await screen.findByRole('button', { name: /^Kennington/ })).toBeInTheDocument();
+    await userEvent.click(nearest());
+    expect(await screen.findByRole('button', { name: /^Westminster/ })).toBeInTheDocument();
     expect(nearbyStops).toHaveBeenCalledOnce();
   });
 
   it('says so when there is no such postcode, and stays', async () => {
     vi.mocked(findPostcode).mockResolvedValue('unknown');
     render(<SetupWizard />);
+    await typeInstead();
     await userEvent.type(field(), 'ZZ1 1ZZ');
     await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t find that postcode.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Hmm, we couldn’t find that postcode.');
     expect(saveConfigSection).not.toHaveBeenCalled();
   });
 
-  it('saves a postcode typed that could not be looked up, then offers only the search', async () => {
+  it('saves a postcode typed that could not be looked up, and says no stops were found', async () => {
     vi.mocked(findPostcode).mockResolvedValue('failed');
     render(<SetupWizard />);
+    await typeInstead();
     await userEvent.type(field(), '0150');
     await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    expect(await screen.findByText('Search for the stops to show departures from.')).toBeInTheDocument();
+    expect(await screen.findByText('We couldn’t find any stops nearby.')).toBeInTheDocument();
     expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
       postcode: '0150',
       country: 'NO',
@@ -680,25 +711,25 @@ describe('The Location chapter', () => {
     });
     expect(locatePlace).not.toHaveBeenCalled();
     expect(nearbyStops).not.toHaveBeenCalled();
-    expect(screen.queryByRole('list', { name: 'Stops nearby' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Search for a stop' })).toBeInTheDocument();
+    expect(screen.queryByRole('region')).toHaveAccessibleName('Location');
   });
 
-  it('goes on when the weather cannot be found, and offers only the search with no stops near', async () => {
+  it('goes on when the weather cannot be found, leaving it out of what was set', async () => {
     vi.mocked(locatePlace).mockRejectedValue(new SearchFailed());
-    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: [] });
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
-    expect(await screen.findByRole('button', { name: 'Search for a stop' })).toBeInTheDocument();
+    await userEvent.click(nearest());
+    await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByText('You’re all set!');
     expect(saveConfigSection).not.toHaveBeenCalledWith('weather', expect.anything());
+    expect(screen.queryByText('London')).not.toBeInTheDocument();
   });
 
   it('says so when the postcode cannot be saved, and stays', async () => {
     vi.mocked(saveConfigSection).mockResolvedValue({ error: 'failed' });
     render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'SE17 2PU' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save. Try again in a moment.');
-    expect(postcodes()).toHaveLength(LOCATION.postcodes.length);
+    await userEvent.click(nearest());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong there. Try again?');
+    expect(nearest()).toBeInTheDocument();
     expect(locatePlace).not.toHaveBeenCalled();
   });
 });

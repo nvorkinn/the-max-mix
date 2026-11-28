@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN GELEPHCS Effra Southwrk Lambeth TIMS
 import { readFileSync } from 'node:fs';
 import type { Page, Request } from '@playwright/test';
 
@@ -19,8 +19,39 @@ export const locate = JSON.parse(
   };
   locate: { latitude: number; longitude: number; postcodes: { postcode: string }[] };
   postcode: object;
-  stops_near: object[];
+  stops_near: { distance: number }[];
 };
+
+/** A made-up stop near countdown-api's example position, in the shape stopsNear answers. */
+function stopNear(id: string, name: string, mode: string, letter: string, lines: string[], distance: number) {
+  const subtitle = letter ? `Stop ${letter} • ${lines.join(', ')}` : lines.join(', ');
+  const value = { source: 'tfl', id };
+  return { id, name, subtitle, indent: false, value, source: 'tfl', area: 'London', mode, letter, lines, distance };
+}
+
+/**
+ * What the fake server's location routes answer: countdown-api's example, with made-up postcodes and stops near it to
+ * fill the wizard's pages to the most they show (ten postcodes, three stations and five bus stops) and more.
+ */
+export const LOCATED = {
+  ...locate.locate,
+  postcodes: [
+    ...locate.locate.postcodes,
+    ...['SE17 2AA', 'SE17 2BB', 'SE17 2DD', 'SE17 2EE', 'SE17 2FF'].map((postcode, index) => ({
+      ...locate.locate.postcodes[0],
+      postcode,
+      distance: 40 + index * 10
+    }))
+  ]
+};
+const STOPS_NEAR = [
+  ...locate.stops_near,
+  stopNear('490000000P', 'Albany Road', 'bus', 'P', ['12', '35', '40', '45', '68', '148', '171', '176', 'N68'], 300),
+  stopNear('490000000N', 'East Street', 'bus', 'N', ['42', '343'], 320),
+  stopNear('490000000S', 'Thurlow Street', 'bus', 'S', ['42', '136'], 410),
+  stopNear('910GELEPHCS', 'Elephant & Castle Rail Station', 'rail', '', ['Thameslink', 'Southeastern'], 1250),
+  stopNear('940GZZLUBOR', 'Borough Underground Station', 'tube', '', ['Northern'], 1500)
+].toSorted((a, b) => a.distance - b.distance);
 
 const panels = JSON.parse(
   readFileSync(
@@ -328,9 +359,9 @@ export async function fakeCountdownServer(
   const postcodes: string[] = [];
   const near: string[] = [];
   const locationRoutes = [
-    [`${API}/api/devices/locate`, locate.locate, located, (request: Request) => request.postDataJSON() as unknown],
+    [`${API}/api/devices/locate`, LOCATED, located, (request: Request) => request.postDataJSON() as unknown],
     [`${API}/api/postcodes/lookup?*`, locate.postcode, postcodes, queryOf],
-    [`${API}/api/stops/near?*`, locate.stops_near, near, queryOf]
+    [`${API}/api/stops/near?*`, STOPS_NEAR, near, queryOf]
   ] as const;
   await Promise.all(
     locationRoutes.map(([url, answer, asked, what]) =>

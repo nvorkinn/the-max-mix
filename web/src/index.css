@@ -4194,104 +4194,222 @@ input:disabled {
   text-underline-offset: 3px;
 }
 /*
-  The Location chapter (components/setup/SetupLocation.tsx): the postcodes near the kiosk as large buttons, five across
-  on the 10" screen and four on the 7", a text box for one not listed, then the stops near it, one tap each.
+  The Location chapter (components/setup/SetupLocation.tsx), centred like the other chapters and grown with the screen
+  so it fills it, 1024x600 to 1280x800, with nothing to scroll (its buttons' sizes are set under .setup-wizard-location,
+  over the dialogs' 60px buttons): the nearest postcode as one large button, the others
+  three across under it; then the stations and bus stops near it side by side, a few of each; then what was set.
 */
 .setup-wizard-location {
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  justify-content: center;
+  gap: clamp(12px, 2.6vh, 24px);
   min-height: 0;
 }
-.setup-wizard-location-looking {
-  display: grid;
-  place-items: center;
-  min-height: 144px;
+.setup-wizard-location-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.app-modal-panel .setup-wizard-location-aside {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  text-align: center;
+}
+.setup-wizard-location .setup-wizard-location-nearest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  width: min(100%, 560px);
+  min-height: clamp(88px, 16vh, 128px);
+  padding: 0 28px;
+  border: 2px solid var(--accent);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: var(--glow);
+  color: var(--ink);
+}
+.setup-wizard-location .setup-wizard-location-nearest:active {
+  background: color-mix(in srgb, var(--accent) 26%, var(--surface));
+}
+.setup-wizard-location-pin {
+  width: clamp(36px, 6vh, 48px);
+  height: clamp(36px, 6vh, 48px);
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.setup-wizard-location-nearest-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+.setup-wizard-location-nearest-code {
+  font-size: clamp(34px, 6vh, 48px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.setup-wizard-location-nearest-label {
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .setup-wizard-location-postcodes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  width: min(100%, 880px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.setup-wizard-location-postcode {
-  width: 100%;
-  min-height: 64px;
-  padding: 0 8px;
-  border: 2px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface-raised);
-  color: var(--ink);
-  font-size: 21px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.setup-wizard-location-postcode:active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.setup-wizard-location-type {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(100%, 520px);
-}
-.setup-wizard-location-label {
-  font-size: 17px;
-  text-align: center;
-}
-.setup-wizard-location-field {
-  display: flex;
-  gap: 12px;
-}
-.setup-wizard-location-field .postcode-field {
-  flex: 1;
-}
-.setup-wizard-location-field input {
-  min-height: 60px;
-  padding: 0 16px;
-  font-size: 20px;
-  text-transform: uppercase;
-}
-.setup-wizard-location-field .button {
-  min-width: 100px;
-  min-height: 60px;
-  border-radius: 16px;
-  font-size: 19px;
-  font-weight: 700;
-}
-.setup-wizard-location-stops {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 1.6vh, 14px);
   width: min(100%, 640px);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.setup-wizard-location-stop {
+.setup-wizard-location .setup-wizard-location-postcode {
+  width: 100%;
+  min-height: clamp(56px, 10vh, 80px);
+  padding: 0 8px;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: clamp(20px, 3.4vh, 27px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.setup-wizard-location .setup-wizard-location-postcode:active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* Typing a postcode, and the quiet ways out under the postcodes. */
+.setup-wizard-location-ways {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 24px;
+}
+.setup-wizard-location .setup-wizard-other {
+  font-size: 16px;
+}
+.setup-wizard-location-field {
+  display: flex;
+  gap: 12px;
+  width: min(100%, 520px);
+}
+.setup-wizard-location-field .postcode-field {
+  flex: 1;
+}
+.setup-wizard-location-field input {
+  min-height: 68px;
+  padding: 0 20px;
+  font-size: 28px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.setup-wizard-location-field input::placeholder {
+  font-weight: 500;
+  text-transform: none;
+}
+.setup-wizard-location-field .button {
+  min-width: 110px;
+  min-height: 68px;
+  border-radius: 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+/* The stops: stations on the left, bus stops on the right, or one column when there are only either. */
+.setup-wizard-location-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(14px, 2vw, 24px);
+  width: min(100%, 880px);
+}
+.setup-wizard-location-columns[data-columns='1'] {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 440px);
+}
+.setup-wizard-location-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.setup-wizard-location-column-title {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.setup-wizard-location-column-title svg {
+  width: 18px;
+  height: 18px;
+}
+.setup-wizard-location-stops {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.2vh, 10px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-wizard-location .setup-wizard-location-stop {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 0.9vh, 8px);
   width: 100%;
-  min-height: 68px;
-  padding: 8px 18px;
-  font-size: 18px;
+  min-height: clamp(60px, 10vh, 84px);
+  justify-content: center;
+  padding: clamp(6px, 1.2vh, 12px) 14px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--ink);
   text-align: left;
+}
+.setup-wizard-location .setup-wizard-location-stop[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.setup-wizard-location-stop-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.setup-wizard-location-stop-name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.setup-wizard-location-distance {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
 .setup-wizard-location-tick {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   border: 2px solid var(--border);
-  border-radius: 10px;
+  border-radius: 50%;
 }
 .setup-wizard-location-stop[aria-pressed='true'] .setup-wizard-location-tick {
   border-color: var(--accent);
@@ -4299,16 +4417,63 @@ input:disabled {
   color: var(--accent-ink);
 }
 .setup-wizard-location-tick svg {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
 }
-.setup-wizard-location-distance {
+.setup-wizard-location-lines {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+/* A London bus route as on the stop's flag: white on red. */
+.setup-wizard-location-route,
+.setup-wizard-location-line,
+.setup-wizard-location-more {
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
 }
-.setup-wizard-location .countdown-search-button {
-  width: min(100%, 640px);
+.setup-wizard-location-route {
+  min-width: 34px;
+  background: #d6362b;
+  color: #fff;
+}
+.setup-wizard-location-more {
+  background: var(--surface);
+  color: var(--muted);
+}
+/* The chapter's last page: what was set, one line each. */
+.setup-wizard-location-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 20px;
+  font-weight: 700;
+}
+.setup-wizard-location-summary li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.setup-wizard-location-summary svg {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+.setup-wizard-location-settings {
+  max-width: 440px;
 }
 .setup-wizard-location-continue {
   flex-shrink: 0;

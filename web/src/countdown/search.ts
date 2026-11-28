@@ -37,8 +37,8 @@ export interface SearchResult<V = unknown> {
 }
 
 export type StopResult = SearchResult<DepartureStop>;
-/** A stop near a position, and how far from it it is, in metres. */
-export type NearbyStop = StopResult & { distance: number };
+/** A stop near a position: how far from it it is, in metres, what stops there (bus, tube…) and its lines. */
+export type NearbyStop = StopResult & { distance: number; mode: string; lines: string[] };
 export type PlaceResult = SearchResult<Weather>;
 
 /** The search couldn't be made: the kiosk isn't registered, or the server refused or couldn't be reached. */
@@ -163,7 +163,12 @@ export async function nearbyStops(at: Position, signal?: AbortSignal): Promise<N
     if (!answer?.data) throw new SearchFailed();
     found = answer.data;
   }
-  return found.map(result => ({ ...fromStop(result), distance: result.distance }));
+  return found.map(result => ({
+    ...fromStop(result),
+    distance: result.distance,
+    mode: result.mode,
+    lines: result.lines
+  }));
 }
 
 type StopNames = Record<string, { name: string; detail: string; letter?: string }>;
