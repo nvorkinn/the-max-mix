@@ -86,6 +86,7 @@ export const AREAS: Area[] = [
       /^web\/src\/components\/SpeakersView/,
       /^web\/src\/speakers\//,
       /^web\/src\/spotify\/knownDevices/,
+      /^web\/src\/hooks\/useAlongVolume/,
       /^web\/src\/audio\//
     ]
   },
