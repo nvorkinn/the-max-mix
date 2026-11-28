@@ -191,9 +191,48 @@ async function readVolume(device: SonosDevice): Promise<number | null> {
   }
 }
 
+/** What the tablet's stream says it is, as Sonos shows it: a live stream, FLAC, from `url`. */
+const tabletMetadata = (url: string) =>
+  encodeXml(
+    '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" ' +
+      'xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">' +
+      '<item id="the-max-mix" parentID="0" restricted="true"><dc:title>The Max Mix</dc:title>' +
+      '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>' +
+      `<res protocolInfo="http-get:*:audio/flac:*">${encodeXml(url)}</res></item></DIDL-Lite>`
+  );
+
+/** Makes the room's group play the stream at `url` (the tablet's sound) and plays it. */
+async function stream(room: string, url: string): Promise<void> {
+  const device = await coordinatorFor(room);
+  await device.AVTransportService.SetAVTransportURI({
+    InstanceID: 0,
+    CurrentURI: url,
+    CurrentURIMetaData: tabletMetadata(url)
+  });
+  await device.Play();
+}
+
+/** The rooms of every group whose leading room plays the stream at `url`. */
+async function streaming(url: string): Promise<string[]> {
+  const groups = await zoneGroups();
+  const playing = await Promise.all(
+    groups.map(async group => {
+      try {
+        const media = await deviceOf(group.coordinator).AVTransportService.GetMediaInfo();
+        return media.CurrentURI === url;
+      } catch {
+        return false;
+      }
+    })
+  );
+  return groups.filter((_, index) => playing[index]).flatMap(group => roomsOf(group).rooms.map(entry => entry.name));
+}
+
 export const library: SonosOperations = {
   groups: async () => (await zoneGroups()).map(group => roomsOf(group)),
   play,
+  stream,
+  streaming,
   upNext,
   now: async room => {
     const device = await coordinatorFor(room);

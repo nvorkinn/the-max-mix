@@ -75,6 +75,7 @@ export type SonosRequest =
   | { kind: 'play'; room: string; uri: string; next: string[]; positionMs: number; queueFrom?: string }
   | { kind: 'control'; room: string; action: SonosAction; positionMs: number }
   | { kind: 'volume'; room: string; volume: number }
+  | { kind: 'stream'; room: string }
   | { kind: 'join'; room: string; to: string }
   | { kind: 'leave'; room: string }
   | { kind: 'move'; room: string; from: number; to: number; name: string };
@@ -105,7 +106,8 @@ export function parseSonosRequest(kind: string, value: unknown): SonosRequest | 
       const to = parseRoom(body['to']);
       return to ? { kind, room, to } : null;
     }
-    case 'leave': {
+    case 'leave':
+    case 'stream': {
       return { kind, room };
     }
     case 'move': {
@@ -141,6 +143,8 @@ export function guarded(operations: SonosOperations): SonosOperations {
   return {
     groups: wrap(operations.groups),
     play: wrap(operations.play),
+    stream: wrap(operations.stream),
+    streaming: wrap(operations.streaming),
     now: wrap(operations.now),
     upNext: wrap(operations.upNext),
     control: wrap(operations.control),
@@ -155,9 +159,23 @@ export function guarded(operations: SonosOperations): SonosOperations {
 /** The library's calls, each rejecting only with a SonosError. */
 export const sonos: SonosOperations = guarded(library);
 
-/** Carries out a POST /sonos/… request; rejects with a SonosError (a message safe to show) when that fails. */
-export async function runSonosRequest(request: SonosRequest, way: SonosOperations = sonos): Promise<void> {
+/**
+ * Carries out a POST /sonos/… request; rejects with a SonosError (a message safe to show) when that fails. `streamUrl`
+ * is where the speakers find the tablet's stream, null when the Pi has no address on the home network.
+ */
+export async function runSonosRequest(
+  request: SonosRequest,
+  way: SonosOperations = sonos,
+  streamUrl: () => string | null = () => null
+): Promise<void> {
   switch (request.kind) {
+    case 'stream': {
+      const url = streamUrl();
+      if (!url) throw new SonosError('The Pi is not on the home network.');
+      console.info(`sonos: ${request.room} plays the tablet's stream, ${url}`);
+      await way.stream(request.room, url);
+      break;
+    }
     case 'play': {
       const next = request.queueFrom ? await way.upNext(request.queueFrom, MAX_NEXT) : request.next;
       // So the log says what each room was given to play, and whether a queue came with it.

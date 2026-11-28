@@ -105,6 +105,13 @@ The app reaches everything else about Sonos here too:
 - `GET /sonos/art?room=`: the song's artwork, fetched from the speaker's own address only.
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
   group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
+- `POST /sonos/stream` (`room`): the room's group plays the tablet's own sound, so the tablet stays Spotify's player and
+  the rooms play along (`tablet-stream.ts`). The app routes Soloist's stream to the `kiosk_sonos` sink as well
+  (`POST /audio/route` with that id), and the Pi serves what that sink plays as one endless FLAC stream (verbatim frames,
+  `flac.ts`, about 1.4 Mbit/s) at `GET /tablet.flac` on `SONOS_STREAM_PORT` (6330) on the home network. Only the group's
+  leading room fetches it; Sonos keeps the other rooms in time (about 1.5 s behind the tablet). While the tablet is
+  paused the stream carries silence, so the speakers keep it open. `GET /sonos/stream` answers `{"rooms"}`: the rooms
+  whose group plays it now.
 - `POST /sonos/move` (`room`, `from`, `to`, `name`): moves a song in the group's Sonos queue (`ReorderTracksInQueue`),
   from place `from` to place `to` among the songs `GET /sonos/now` lists as next (counted from 0). The song at `from`
   must still be called `name`, so a queue that moved on meanwhile is not reordered wrongly.
@@ -357,7 +364,8 @@ State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` 
 ## Security
 
 - It listens on 127.0.0.1 only (`server.ts` binds there), apart from the Sonos events port (6329) that the sonos-ts
-  library opens on the home network once the app follows the speakers. That port takes events only for the
+  library opens on the home network once the app follows the speakers, and the tablet's stream (6330), which answers
+  `GET /tablet.flac` alone (404 otherwise) and sends only what the `kiosk_sonos` sink plays. That port takes events only for the
   subscriptions the Pi holds (anything else gets 412), and otherwise answers just the library's `/status` and `/health`. It answers the app's origin alone
   (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
   to a WebSocket), so no other web page can trigger an action.

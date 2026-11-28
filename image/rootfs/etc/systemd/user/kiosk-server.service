@@ -12,6 +12,9 @@ Environment=KIOSK_APP_ORIGIN=http://127.0.0.1:7341
 # library opens it the first time the app listens. It takes events only for the subscriptions it holds (anything else
 # gets 412) and otherwise answers just its /status and /health pages.
 Environment=SONOS_LISTENER_PORT=6329
+# The port the Sonos rooms that play along with the tablet fetch its sound from (tablet-stream.ts), on every address:
+# GET /tablet.flac, an endless FLAC stream of what the tablet plays.
+Environment=SONOS_STREAM_PORT=6330
 # The Pi's own settings: KIOSK_NAME, the name Soloist goes by in Spotify Connect (empty or missing: the host name
 # decides, soloist.ts). A new name takes effect when this service restarts.
 EnvironmentFile=-/data/the-max-mix/kiosk.env

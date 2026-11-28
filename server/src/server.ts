@@ -20,6 +20,9 @@
 //                           "queueFrom"?: a room, whose group's songs still to come are queued instead of `next`
 //   POST /sonos/control     {"room", "action": "play" | "pause" | "next" | "previous" | "seek", "positionMs"?}
 //   POST /sonos/volume      {"room", "volume": 0-100}   the room's whole group
+//   POST /sonos/stream      {"room"}   the room's group plays the tablet's own sound (tablet-stream.ts), so it plays along
+//                           with the tablet, which stays Spotify's player
+//   GET  /sonos/stream      {"rooms": [name, …]}: the rooms whose group plays the tablet's sound now
 //   POST /sonos/join        {"room", "to"}   add the room to the group `to` is in      POST /sonos/leave  {"room"}
 //   POST /sonos/move        {"room", "from", "to", "name"}   move the song at place `from` in "next" (from 0) to place
 //                           `to` in the group's Sonos queue, if it is still the song called `name`
@@ -124,6 +127,7 @@ import { libraryEvents } from './sonos-library.ts';
 import { parseRoom, parseSonosRequest, runSonosRequest, sonos, SonosError } from './sonos.ts';
 import type { SonosOperations, SonosRequest } from './sonos.ts';
 import { speakerOutputs, speakerSinks, validChoices, validVolume } from './speakers.ts';
+import { DEFAULT_STREAM_PORT, serveTabletStream, tabletStreamUrl } from './tablet-stream.ts';
 import { attachUpdateSocket } from './update-socket.ts';
 import type { Update } from './update-socket.ts';
 import { runUpdate } from './update.ts';
@@ -156,6 +160,8 @@ export interface Deps {
   sonos: (request: SonosRequest) => Promise<void>;
   /** The Sonos calls, for the GETs; each rejects with a SonosError. */
   sonosCalls: SonosOperations;
+  /** Where the speakers find the tablet's stream (tablet-stream.ts); null when the Pi is not on the home network. */
+  streamUrl?: () => string | null;
   /** The speakers' live changes, for GET /sonos/events. */
   sonosEvents: { add: (client: (change: SonosChange) => void) => () => void };
   /** Milliseconds, to time how long finding the Sonos groups takes. */
@@ -396,6 +402,10 @@ async function getSonos(request: IncomingMessage, response: ServerResponse, deps
   const url = new URL(request.url ?? '', LOCAL_ORIGIN);
   const room = parseRoom(url.searchParams.get('room'));
   const isGroups = url.pathname === '/sonos/groups';
+  if (url.pathname === '/sonos/stream') {
+    await getStreaming(response, deps);
+    return;
+  }
   if (!isGroups && !room) {
     response.writeHead(400).end();
     return;
@@ -414,6 +424,16 @@ async function getSonos(request: IncomingMessage, response: ServerResponse, deps
       if (art) response.writeHead(200, { 'Content-Type': art.type }).end(art.body);
       else response.writeHead(404).end();
     }
+  } catch (error) {
+    sendSonosError(response, error);
+  }
+}
+
+/** GET /sonos/stream: the rooms that play the tablet's stream. */
+async function getStreaming(response: ServerResponse, deps: Deps): Promise<void> {
+  const url = deps.streamUrl?.() ?? null;
+  try {
+    sendJson(response, 200, { rooms: url ? await deps.sonosCalls.streaming(url) : [] });
   } catch (error) {
     sendSonosError(response, error);
   }
@@ -548,6 +568,7 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/sonos/play':
     case '/sonos/control':
     case '/sonos/volume':
+    case '/sonos/stream':
     case '/sonos/join':
     case '/sonos/leave':
     case '/sonos/move': {
@@ -884,7 +905,7 @@ function appOnlyGet(
   if (url === '/camera/stream') return () => streamCamera(request, response, deps);
   // The access points around the Pi say where it is, so only the app's setup wizard may ask.
   // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
-  if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) return () => getSonos(request, response, deps);
+  if (/^\/sonos\/(groups|now|art|stream)(\?|$)/.test(url)) return () => getSonos(request, response, deps);
   return null;
 }
 
@@ -1006,10 +1027,17 @@ export function serveSpeakers(
     }
   });
   const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir, deviceName: deps.soloistDeviceName });
+  const streamPort = Number(process.env['SONOS_STREAM_PORT']) || DEFAULT_STREAM_PORT;
+  serveTabletStream(streamPort);
+  const streamUrl = () => {
+    const address = deps.wifi.address();
+    return address ? tabletStreamUrl(address, streamPort) : null;
+  };
   const handler = handleRequest(origin, {
     ...deps,
     perform,
-    sonos: request => runSonosRequest(request),
+    sonos: request => runSonosRequest(request, sonos, streamUrl),
+    streamUrl,
     sonosCalls: sonos,
     sonosEvents: new SonosEventHub(libraryEvents),
     heartbeat,
