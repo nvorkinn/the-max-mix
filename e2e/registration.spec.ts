@@ -226,7 +226,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await nearest.click();
       const stations = page.getByRole('region', { name: 'Stations' }).getByRole('button');
       const busStops = page.getByRole('region', { name: 'Bus stops' }).getByRole('button');
-      await expect(page.getByText('Your nearest stops')).toBeVisible();
+      await expect(page.getByText('The tablet can show live bus and Tube times')).toBeVisible();
       await expect(busStops).toHaveCount(5);
       await expect(stations).toHaveCount(3);
       await expect(busStops.first()).toContainText('Westmoreland Road');

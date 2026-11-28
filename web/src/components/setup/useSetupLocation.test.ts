@@ -25,7 +25,9 @@ const STOPS: NearbyStop[] = [
     letter: 'K',
     indent: false,
     value: { source: 'tfl', id: '490014501K' },
-    distance: 136
+    distance: 136,
+    mode: 'bus',
+    lines: ['40', '68']
   }
 ];
 

@@ -629,8 +629,11 @@ export const STRINGS = {
     en: 'Something went wrong there. Try again?',
     nb: 'Noe gikk galt. Prøve igjen?'
   },
-  'setup.location_stops': { en: 'Your nearest stops', nb: 'Stoppene nærmest deg' },
-  'setup.location_stops_tap': { en: 'Tap the ones you use.', nb: 'Trykk på dem du bruker.' },
+  'setup.location_stops': {
+    en: 'The tablet can show live bus and Tube times',
+    nb: 'Nettbrettet kan vise sanntid for buss og T-bane'
+  },
+  'setup.location_stops_tap': { en: 'Tap the stops you use most.', nb: 'Trykk på stoppene du bruker mest.' },
   'setup.location_no_stops': {
     en: 'We couldn’t find any stops nearby.',
     nb: 'Vi fant ingen stopp i nærheten.'

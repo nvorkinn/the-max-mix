@@ -174,7 +174,9 @@ describe('nearbyStops', () => {
       letter: 'K',
       indent: false,
       value: { source: 'tfl', id: '490014501K' },
-      distance: 136
+      distance: 136,
+      mode: 'bus',
+      lines: ['40', '68', '176', '468', 'N68']
     });
     expect(stops.at(-1)).toMatchObject({ name: 'Elephant & Castle Underground Station', detail: 'Bakerloo, Northern' });
   });
