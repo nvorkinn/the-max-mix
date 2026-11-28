@@ -51,6 +51,7 @@ import {
   saveThemeColour,
   toThemeColour
 } from '../utils/themeColour';
+import { useLights } from '../hooks/useLights';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { DEFAULT_LANGUAGE, LanguageContext, LOCALES } from '../i18n/language';
@@ -66,6 +67,7 @@ import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
 import { describePlayback, PlayerProblem, type PlaybackNoticeState, type PlayerNotice } from './PlaybackNotice';
+import LightsView from './LightsView';
 import LyricsPanel from './LyricsPanel';
 import PanelNav from './PanelNav';
 import SettingsPanel from './SettingsPanel';
@@ -346,6 +348,11 @@ export default function TabletView() {
   };
   // The brightness setting, on a kiosk whose panel has a backlight the Pi can set (utils/backlight).
   const hasBacklight = onKiosk && ownedConfig?.brightness_control === true;
+  // The lights the owner let this kiosk switch (Home Assistant's, through the Pi's service); most kiosks have none.
+  const lights = useLights(onKiosk, ownedConfig);
+  const hasLights = lights.status !== null && lights.status.state !== 'off';
+  // A kiosk whose lights were taken away while their tab was open goes back to the Dashboard.
+  if (screen === 'lights' && !hasLights) setScreen('dashboard');
   const brightness = display ? brightnessOf(display) : BRIGHTNESS_MAX;
   const changeBrightness = (percent: number) => {
     if (display) deviceConfig.save('display', { ...display, brightness: percent });
@@ -666,7 +673,8 @@ export default function TabletView() {
     // Every tab's bar shows the signed-in person's face, so tapping it switches person on every tab.
     onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null,
     // Holding the clock opens the debug console, on every tab.
-    onClockHold: () => setIsDebugOpen(true)
+    onClockHold: () => setIsDebugOpen(true),
+    hasLights
   };
 
   // A playback problem is listed under the tab bar's warning, and one with a fix is said in the player too, in the
@@ -818,6 +826,21 @@ export default function TabletView() {
             holidayDaysAhead={ownedConfig?.holidays?.days_ahead}
           />
         </section>
+        {hasLights && (
+          <section
+            className="app-tab-panel on-photo"
+            role="tabpanel"
+            id={tabPanelId('lights')}
+            aria-label={translate('tabs.lights', language)}
+            hidden={screen !== 'lights'}
+          >
+            {screen === 'lights' && <TabBackdrop now={tabBar.now} />}
+            <div className="floating-bar">
+              <TabBar {...tabBar} onSearch={null} />
+            </div>
+            {screen === 'lights' && <LightsView {...lights} />}
+          </section>
+        )}
         <section
           className="app-tab-panel on-photo"
           role="tabpanel"

@@ -2517,6 +2517,136 @@ body:has(.app-dialog[open]) {
   direction: rtl;
 }
 /*
+  The Lights tab: the kiosk's lights in a row, centred under the tab bar. Each is a tall column like the brightness
+  one above, filling from the bottom as the light brightens, with its on/off button and its name under it. A light
+  that dims has a range input lying over its column, unseen and upright, so a drag anywhere on it follows the finger.
+*/
+.lights-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--float-bar) + 16px) 32px 24px;
+  overflow-y: auto;
+}
+.lights-notice {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 22px;
+  text-align: center;
+}
+.lights-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 28px 36px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.light {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 132px;
+}
+.light[data-unavailable] {
+  opacity: 0.6;
+}
+.light-column {
+  position: relative;
+  width: 100%;
+  height: min(300px, 42dvh);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  background: var(--surface-raised);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.light-column:has(.light-range:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.light-fill {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--level);
+  background: var(--play-fill);
+  box-shadow: var(--glow);
+  transition: height 0.2s ease-out;
+}
+/* A light that is on keeps enough fill behind its value for the value to be read on it, however dim it is. */
+.light[data-on] .light-fill {
+  min-height: 58px;
+}
+.light-icon {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  width: 34px;
+  height: 34px;
+  transform: translateX(-50%);
+  color: var(--ink);
+}
+.light-value {
+  position: absolute;
+  inset: auto 0 18px;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.light[data-on] .light-value {
+  color: var(--accent-ink);
+}
+.light-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  touch-action: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+.light-power {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+.light-power[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--play-fill);
+  color: var(--accent-ink);
+  box-shadow: var(--glow);
+}
+.light-power:disabled {
+  cursor: default;
+}
+.light-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  /* The name lies straight on the photo, as the tab bar's words do. */
+  text-shadow: 0 1px 14px rgb(0 0 0 / 45%);
+  white-space: nowrap;
+}
+/*
   The quiet hours on the day (QuietHoursTimeline): the band from one end to the other, wrapping past midnight, a mark at
   the time now, and a handle at each end with its time above it. The day is clipped to its rounded track; the handles
   and their times stand out of it.

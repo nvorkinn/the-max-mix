@@ -48,6 +48,18 @@ describe('HourlyTrend', () => {
 describe('TabBar', () => {
   const base = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: null };
 
+  it('has a Lights tab only on a kiosk with lights', () => {
+    const { rerender } = render(<TabBar {...base} />);
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    rerender(<TabBar {...base} hasLights />);
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual([
+      'Spotify',
+      'Dashboard',
+      'Lights',
+      'Settings'
+    ]);
+  });
+
   it('shows the picture, or the initial, or nothing when nobody is signed in, and no search without a handler', () => {
     const { container, rerender } = render(
       <TabBar {...base} person={{ name: 'Max', pictureUrl: 'https://x/y.jpg' }} />
