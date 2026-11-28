@@ -9,6 +9,7 @@ import { clearLyricsCache } from '../hooks/useLyrics';
 import { fetchSpotify, recordSpotifyRetryAfter, resetSpotifyRateLimit, SpotifyApiError } from '../spotify/http';
 import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
 import * as deviceConfig from '../countdown/config';
+import { QUIET_DIM_MS } from '../hooks/useScreenSleep';
 import { renderOnSpotifyTab } from '../test/onSpotifyTab';
 import TabletView from './TabletView';
 
@@ -1134,6 +1135,21 @@ describe('TabletView', () => {
           expect(backlights(fetch)).toEqual([80, 24]);
           fireEvent.click(screen.getByRole('button', { name: 'Wake the screen' }));
           expect(backlights(fetch)).toEqual([80, 24, 80]);
+        });
+
+        it('in quiet hours dims all the way down five seconds after the last touch', async () => {
+          vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
+          vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue({
+            ...BACKLIT,
+            display: { ...BACKLIT.display, quiet_hours: { on: true, start: 22 * 60, end: 7 * 60 } }
+          });
+          const fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+          vi.stubGlobal('fetch', fetch);
+          renderOnSpotifyTab(<TabletView />);
+          // The config loads first, then the screen dims well before the minute it sleeps at.
+          await act(() => vi.advanceTimersByTimeAsync(0));
+          await act(() => vi.advanceTimersByTimeAsync(2 * QUIET_DIM_MS));
+          expect(backlights(fetch)).toEqual([80, 1]);
         });
 
         it('keeps quiet hours on the server, and hands it the ones set on the kiosk before', async () => {
