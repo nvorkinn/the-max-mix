@@ -275,13 +275,13 @@ describe('run', () => {
     expect(world.ran).toEqual([['tryboot']]);
   });
 
-  it('leaves a stable Pi’s install for the next restart, and checks it every 6 hours only', async () => {
+  it('restarts a stable Pi into its install at once, and checks it every 6 hours only', async () => {
     const { io, world } = pi({ channel: 'stable' });
     world.files[RELEASE_ENV] = 'KIOSK_RELEASE_REF=v1.0.0\nKIOSK_RELEASE_COMMIT=aaa\n';
     world.remote.version = 'v1.1.0+bbb';
     await run(io, true);
-    expect(world.state.pending).toEqual({ version: 'v1.1.0+bbb', slot: 'b', tried: false });
-    expect(world.ran).toEqual([]);
+    expect(world.state.pending).toEqual({ version: 'v1.1.0+bbb', slot: 'b', tried: true });
+    expect(world.ran).toEqual([['tryboot']]);
 
     world.remote.pointer = `${RELEASES}/download/v1.1.0/the-max-mix-v1.1.0.raucb`;
     world.now += STABLE_EVERY_MS - 1;
@@ -546,16 +546,12 @@ describe('a release that changed only the app', () => {
     expect(world.log).toContain('Not healthy: kiosk.service failed to start.');
   });
 
-  it('leaves a stable Pi’s app for the next restart', async () => {
+  it('changes a stable Pi over to its app at once', async () => {
     const { io, world } = appPi({ channel: 'stable' });
     world.remote.pointer = `${RELEASES}/download/v2/the-max-mix-v2.raucb`;
     world.remote.version = 'v2+bbb';
     world.remote.manifest = manifest({ version: 'v2+bbb' });
     await expect(run(io, false)).resolves.toMatchObject({ result: 'installed', installed: 'v2+bbb' });
-    expect(world.apps.inUse).toBeNull();
-    expect(world.state.pending).toEqual({ version: 'v2+bbb', slot: '', tried: false, over: 'dev+aaa' });
-    await expect(check(io)).resolves.toMatchObject({ result: 'installed' });
-    await restart(io);
     expect(world.apps.inUse).toBe('v2+bbb');
     expect(world.ran.slice(1)).toEqual(RESTARTS);
     expect(world.state.pending).toBeNull();

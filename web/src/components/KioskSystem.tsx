@@ -16,7 +16,7 @@ const formatTime = (ms: number) =>
 /**
  * The kiosk's own section of the settings: which release (or channel and commit) the Pi runs, whether a newer one is
  * on its update channel, restart and reboot. The button beside the version checks the channel again; a newer version it
- * finds is asked about in the update popup (UpdatePrompt), and the row itself offers Install, then Restart now.
+ * finds is asked about in the update popup (UpdatePrompt), and the row itself offers Install; the Pi restarts into it.
  */
 export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }>) {
   const { version, release, what = '', latest, newer, isChecking, checkedAt, isUpdating, progress, checkNow } = update;
@@ -36,7 +36,7 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
     if (installed) status = t('about.installed', { version: versionLabel(installed) });
   }
   if (progress) status = progress;
-  const offer = !isUpdating && (installed !== null || newer !== null);
+  const offer = !isUpdating && installed === null && newer !== null;
 
   const look = SOFTWARE_LOOK[softwareState(update)];
   const StatusIcon = look.icon;
@@ -59,10 +59,10 @@ export default function KioskSystem({ update }: Readonly<{ update: KioskUpdate }
         {offer && (
           <button
             type="button"
-            onClick={installed ? restartKiosk : start}
+            onClick={start}
             className="modal-option settings-action shrink-0 rounded-2xl border font-bold active:scale-98 transition-all"
           >
-            {t(installed ? 'about.restart_now' : 'about.install')}
+            {t('about.install')}
           </button>
         )}
         <button

@@ -180,7 +180,7 @@ export function useKioskUpdate(enabled: boolean): KioskUpdate {
             case 'installed': {
               isEnded = true;
               const installed = event.message ?? null;
-              setProgress(`${installed ? versionLabel(installed) : 'The update'} is installed. Restart to finish.`);
+              setProgress(`${installed ? versionLabel(installed) : 'The update'} is installed.`);
               setAnswer(previous => previous && { ...previous, installed, result: 'installed' });
               setIsUpdating(false);
               break;

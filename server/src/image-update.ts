@@ -6,7 +6,7 @@
 //            version from its manifest only when that changed, and compare it with the booted version, the installed one
 //            and the failed ones.
 //   install  rauc install, streaming from the URL, with its progress as journal lines the app turns into its bar.
-//   apply    reboot with tryboot into the installed slot (04:30, Restart, or at once on the dev and branch channels).
+//   apply    reboot with tryboot into the installed slot, at once (or at 04:30 or on Restart if that failed).
 //   health   kiosk-health.ts decides after each boot; a tried slot that is not kept is a failed version, never retried.
 //
 // A release that changed only the app (the web app and kiosk-server) skips all that. Each bundle has the app on its own
@@ -436,8 +436,8 @@ export async function restart(io: UpdateIO): Promise<void> {
 }
 
 /**
- * The timer (`isScheduled`) and the screen's Install: check, install anything newer, and on the dev and branch channels
- * restart into it at once. A stable Pi's timer checks every 6 hours only.
+ * The timer (`isScheduled`) and the screen's Install: check, install anything newer, and restart into it at once. A
+ * stable Pi's timer checks every 6 hours only.
  */
 export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked | null> {
   const channel = await readChannel(io);
@@ -452,12 +452,14 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
   }
   try {
     const done = await install(io);
+    if (done.result === 'installed') {
+      await apply(io);
+      return done;
+    }
     if (done.result === 'up-to-date') {
       io.log(`Up to date (${done.current ?? 'unknown version'}).`);
     } else if (done.result === 'failed') {
       io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
-    } else if (channel !== 'stable' && done.result === 'installed') {
-      await apply(io);
     }
     return done;
   } finally {

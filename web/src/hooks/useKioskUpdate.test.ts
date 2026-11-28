@@ -321,7 +321,7 @@ describe('useKioskUpdate', () => {
     expect(result.current).toMatchObject({
       isUpdating: false,
       installed: 'v1.13.0+bbbbbbb2',
-      progress: 'v1.13.0 is installed. Restart to finish.'
+      progress: 'v1.13.0 is installed.'
     });
   });
 });

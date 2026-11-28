@@ -281,7 +281,7 @@ describe('KioskSystem', () => {
     expect(kiosk.rebootPi).toHaveBeenCalledTimes(1);
   });
 
-  it('installs and restarts from the row', async () => {
+  it('installs from the row, with nothing left to tap', async () => {
     channel(NEWER);
     render(<Harness />);
     await userEvent.click(await screen.findByRole('button', { name: 'Not now', hidden: true }));
@@ -294,12 +294,8 @@ describe('KioskSystem', () => {
     act(() => latestFakeSocket().receive({ type: 'status', state: 'installed', message: 'v1.13.0+bbbbbbb0' }));
     act(() => latestFakeSocket().end());
 
-    expect(screen.getAllByText('v1.13.0 is installed. Restart to finish.').length).toBeGreaterThan(0);
-    const restarts = screen.getAllByRole('button', { name: 'Restart now', hidden: true });
-    expect(restarts).toHaveLength(2);
-    const [restart] = restarts;
-    if (!restart) throw new Error('No Restart now button');
-    await userEvent.click(restart);
-    expect(kiosk.restartKiosk).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('v1.13.0 is installed.').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Install', hidden: true })).not.toBeInTheDocument();
+    expect(kiosk.restartKiosk).not.toHaveBeenCalled();
   });
 });
