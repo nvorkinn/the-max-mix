@@ -7,7 +7,7 @@
 //   serve [port]          Adds a PipeWire sink, links Soloist's output into it as well, and serves that sound as an
 //                         endless WAV at http://<pi>:<port>/stream.wav (default port 7350) until Ctrl+C, which takes the
 //                         sink and links away again. Logs each connection and how much it sent.
-//   play <room> [port]    Takes the room out of its group, sets it to 5% and plays the stream on it.
+//   play <room> [flac|wav] Takes the room out of its group, sets it to 5% and plays the stream on it (default FLAC).
 //   join <room> <to>      Adds the room to the group <to> leads, at 5%.
 //   stop <room>           Stops the room's group and takes it back out of any group.
 //
@@ -181,7 +181,72 @@ function wavHeader(): Buffer {
   return header;
 }
 
+// FLAC, the format AirConnect sends Sonos: verbatim (uncompressed) frames of BLOCK samples, which need no encoder.
+const BLOCK = 4096;
+
+function crc8(bytes: Uint8Array): number {
+  let crc = 0;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = crc & 0x80 ? ((crc << 1) ^ 0x07) & 0xff : (crc << 1) & 0xff;
+  }
+  return crc;
+}
+
+function crc16(bytes: Uint8Array): number {
+  let crc = 0;
+  for (const byte of bytes) {
+    crc ^= byte << 8;
+    for (let bit = 0; bit < 8; bit += 1) crc = crc & 0x80_00 ? ((crc << 1) ^ 0x80_05) & 0xff_ff : (crc << 1) & 0xff_ff;
+  }
+  return crc;
+}
+
+/** FLAC's UTF-8-like coding of the frame number. */
+function codedNumber(value: number): number[] {
+  if (value < 0x80) return [value];
+  const limits = [0x8_00, 0x1_00_00, 0x20_00_00, 0x4_00_00_00];
+  const below = limits.findIndex(limit => value < limit);
+  const count = below === -1 ? 6 : below + 2;
+  const bytes = [((0xff << (8 - count)) & 0xff) | Math.floor(value / 2 ** (6 * (count - 1)))];
+  for (let k = count - 2; k >= 0; k -= 1) bytes.push(0x80 | (Math.floor(value / 2 ** (6 * k)) & 0x3f));
+  return bytes;
+}
+
+function flacHeader(): Buffer {
+  const info = Buffer.alloc(4 + 4 + 34);
+  info.write('fLaC', 0);
+  info.writeUInt8(0x80, 4); // last metadata block, STREAMINFO
+  info.writeUIntBE(34, 5, 3);
+  info.writeUInt16BE(BLOCK, 8);
+  info.writeUInt16BE(BLOCK, 10);
+  // min/max frame size unknown (0); then 20 bits rate, 3 bits channels-1, 5 bits bps-1, 36 bits total samples (0).
+  const packed = (BigInt(RATE) << 44n) | (BigInt(CHANNELS - 1) << 41n) | (15n << 36n);
+  info.writeBigUInt64BE(packed, 18);
+  return info;
+}
+
+/** One frame of BLOCK interleaved s16le stereo samples. */
+function flacFrame(pcm: Buffer, index: number): Buffer {
+  const head = Buffer.from([0xff, 0xf8, 0xc9, 0x18, ...codedNumber(index)]);
+  const frame = Buffer.alloc(head.length + 1 + CHANNELS * (1 + BLOCK * 2) + 2);
+  head.copy(frame);
+  frame[head.length] = crc8(head);
+  let at = head.length + 1;
+  for (let channel = 0; channel < CHANNELS; channel += 1) {
+    frame[at] = 0x02; // VERBATIM subframe, no wasted bits
+    at += 1;
+    for (let sample = 0; sample < BLOCK; sample += 1) {
+      frame.writeInt16BE(pcm.readInt16LE((sample * CHANNELS + channel) * 2), at);
+      at += 2;
+    }
+  }
+  frame.writeUInt16BE(crc16(frame.subarray(0, at)), at);
+  return frame;
+}
+
 function serve(port: number): void {
+  run(['pw-cli', 'destroy', SINK]); // one left by an earlier run
   const made = run([
     'pw-cli',
     'create-node',
@@ -193,11 +258,13 @@ function serve(port: number): void {
   const linkSoloist = () => {
     const ports = soloistPorts();
     const existing = run(['pw-link', '--links']).out;
+    // Each "|->" line under a port is one of its links; only those under ours matter here.
     for (const out of ports) {
       const side = out.endsWith('FL') ? 'FL' : 'FR';
       const input = `${SINK}:playback_${side}`;
-      if (new RegExp(`${out}\\s*\\n\\s*\\|->\\s*${input}`).test(existing)) continue;
+      if (existing.includes(input)) continue;
       const linked = run(['pw-link', out, input]);
+      if (linked.out.includes('File exists')) continue;
       console.log(`link ${out} -> ${input}: ${linked.code === 0 ? 'made' : linked.out || 'timed out (made once it plays)'}`);
     }
     return ports.length;
@@ -205,16 +272,20 @@ function serve(port: number): void {
   const server = createServer((request, response) => {
     const from = request.socket.remoteAddress;
     console.log(`${new Date().toISOString()} ${request.method} ${request.url} from ${from} ${request.headers['user-agent']}`);
-    if (!request.url?.startsWith('/stream.wav')) {
+    const flac = request.url?.startsWith('/stream.flac') ?? false;
+    if (!flac && !request.url?.startsWith('/stream.wav')) {
       response.writeHead(404).end();
       return;
     }
-    response.writeHead(200, { 'content-type': 'audio/wav', 'cache-control': 'no-cache', connection: 'close' });
+    const type = flac ? 'audio/flac' : 'audio/wav';
+    response.writeHead(200, { 'content-type': type, 'cache-control': 'no-cache', connection: 'close' });
     if (request.method === 'HEAD') {
       response.end();
       return;
     }
-    response.write(wavHeader());
+    response.write(flac ? flacHeader() : wavHeader());
+    let pending = Buffer.alloc(0);
+    let frames = 0;
     const recorder = spawn('pw-record', [
       '--target',
       SINK,
@@ -234,7 +305,17 @@ function serve(port: number): void {
     const started = Date.now();
     recorder.stdout.on('data', (chunk: Buffer) => {
       sent += chunk.length;
-      response.write(chunk);
+      if (!flac) {
+        response.write(chunk);
+        return;
+      }
+      pending = Buffer.concat([pending, chunk]);
+      const size = BLOCK * CHANNELS * 2;
+      while (pending.length >= size) {
+        response.write(flacFrame(pending.subarray(0, size), frames));
+        frames += 1;
+        pending = pending.subarray(size);
+      }
     });
     recorder.stderr.on('data', (chunk: Buffer) => process.stderr.write(chunk));
     const report = setInterval(() => {
@@ -248,7 +329,7 @@ function serve(port: number): void {
       console.log(`${new Date().toISOString()} closed ${from} after ${(sent / (RATE * CHANNELS * 2)).toFixed(1)} s`);
     });
   });
-  server.listen(port, '0.0.0.0', () => console.log(`serving http://${piAddress()}:${port}/stream.wav`));
+  server.listen(port, '0.0.0.0', () => console.log(`serving http://${piAddress()}:${port}/stream.flac (and /stream.wav)`));
   if (linkSoloist() === 0) console.log('Soloist has no output yet; it is linked once it plays (checked every 2 s)');
   const relink = setInterval(linkSoloist, 2000);
 
@@ -263,17 +344,17 @@ function serve(port: number): void {
   process.on('SIGTERM', cleanup);
 }
 
-async function play(name: string, port: number): Promise<void> {
+async function play(name: string, port: number, format: string): Promise<void> {
   const target = await room(name);
   if (target.coordinator !== target.uuid) await avTransport(target.host, 'BecomeCoordinatorOfStandaloneGroup');
   await setVolume(target.host);
-  const url = `http://${piAddress()}:${port}/stream.wav`;
+  const url = `http://${piAddress()}:${port}/stream.${format}`;
   const didl =
     '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" ' +
     'xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">' +
     '<item id="maxmix" parentID="0" restricted="true"><dc:title>The Max Mix</dc:title>' +
     '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>' +
-    `<res protocolInfo="http-get:*:audio/wav:*">${xmlEscape(url)}</res></item></DIDL-Lite>`;
+    `<res protocolInfo="http-get:*:audio/${format}:*">${xmlEscape(url)}</res></item></DIDL-Lite>`;
   await avTransport(
     target.host,
     'SetAVTransportURI',
@@ -324,7 +405,7 @@ switch (command) {
     break;
   }
   case 'play': {
-    await play(first ?? '', port(second));
+    await play(first ?? '', port(undefined), second === 'wav' ? 'wav' : 'flac');
     break;
   }
   case 'join': {
@@ -336,6 +417,6 @@ switch (command) {
     break;
   }
   default: {
-    console.log('commands: rooms | serve [port] | play <room> [port] | join <room> <to> | stop <room>');
+    console.log('commands: rooms | serve [port] | play <room> [flac|wav] | join <room> <to> | stop <room>');
   }
 }
