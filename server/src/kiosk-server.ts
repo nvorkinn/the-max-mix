@@ -59,6 +59,7 @@ if (process.argv[2] === 'watch') {
     appFolder: process.env['KIOSK_APP_DIR'] ?? '',
     handoverFile: path.join(stateHome, 'the-max-mix', 'handover.json'),
     soloistStateDir: path.join(stateHome, 'soloist'),
+    lightsSessionFile: path.join(stateHome, 'the-max-mix', 'home-assistant.json'),
     // The kiosk's own name (kiosk_name), or one from its host name, so two kiosks on one account differ in Spotify.
     soloistDeviceName: soloistDeviceName(process.env['KIOSK_NAME'], hostname())
   });

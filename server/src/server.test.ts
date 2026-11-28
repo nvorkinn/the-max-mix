@@ -9,6 +9,7 @@ import type { Viewer } from './camera.ts';
 import { dump, exchange } from './fixtures.ts';
 import { HotspotError } from './hotspot.ts';
 import type { Checked } from './image-update.ts';
+import type { LightsStatus, SetRequest } from './lights.ts';
 import { ERRORS, ScanError } from './nmcli.ts';
 import type { ConnectRequest } from './nmcli.ts';
 import { PAIRING_ERRORS } from './phone-pairing.ts';
@@ -76,6 +77,11 @@ function memoryHandover(): Deps['handover'] {
   };
 }
 
+const LIGHTS: LightsStatus = {
+  state: 'ready',
+  lights: [{ id: 'light.kitchen', name: 'Kitchen', on: true, brightness: 40, dimmable: true, available: true }]
+};
+
 function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFailing = false) {
   const verboseCalls: boolean[] = [];
   const pairingCalls: string[] = [];
@@ -88,6 +94,8 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
   const brightnesses: (number | { percent: number; fade: boolean })[] = [];
   const soloistRequests: SoloistRequest[] = [];
   const soloistStops: true[] = [];
+  const lightCalls: unknown[] = [];
+  const lightListeners = new Set<(status: LightsStatus) => void>();
   const routed: Choice[][] = [];
   const volumes: [Choice, number][] = [];
   const played: SonosRequest[] = [];
@@ -195,6 +203,26 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
       soloistStops.push(true);
       return Promise.resolve();
     },
+    lights: {
+      configure: request => {
+        lightCalls.push(request);
+        return Promise.resolve(LIGHTS);
+      },
+      status: () => LIGHTS,
+      add: listener => {
+        lightListeners.add(listener);
+        return () => lightListeners.delete(listener);
+      },
+      set: (request: SetRequest) => {
+        lightCalls.push(request);
+        if (request.id === 'light.bedroom') return Promise.resolve('not-allowed');
+        return Promise.resolve(request.id === 'light.hall' ? 'failed' : 'done');
+      },
+      signOut: () => {
+        lightCalls.push('sign-out');
+        return Promise.resolve();
+      }
+    },
     bluetooth: {
       list: () => Promise.resolve([speaker]),
       scan: () => Promise.resolve([speaker, { ...speaker, address: '11:22:33:44:55:66', paired: false }]),
@@ -259,6 +287,8 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
     brightnesses,
     soloistRequests,
     soloistStops,
+    lightCalls,
+    lightListeners,
     routed,
     volumes,
     played,
@@ -361,6 +391,74 @@ describe('GET /speakers', () => {
   it('says when PipeWire cannot be read', async () => {
     const base = await start(fakes({ graph: () => Promise.reject(new Error('no PipeWire')) }).deps);
     expect((await fetch(`${base}/speakers`)).status).toBe(503);
+  });
+});
+
+describe('the lights', () => {
+  const config = { server: 'https://countdown.run/api', secret: 'device-secret' };
+
+  it('reads the config from the server asked for, and answers where the lights stand', async () => {
+    const { deps, lightCalls } = fakes();
+    const base = await start(deps);
+    const response = await post(base, '/lights/config', { body: config });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(LIGHTS);
+    expect(lightCalls).toEqual([{ server: 'https://countdown.run', secret: 'device-secret' }]);
+    const status = await fetch(`${base}/lights`, { headers: { Origin: ORIGIN } });
+    expect(await status.json()).toEqual(LIGHTS);
+  });
+
+  it('switches a light, and says why it could not', async () => {
+    const { deps, lightCalls } = fakes();
+    const base = await start(deps);
+    const kitchen = { id: 'light.kitchen', on: true, brightness: 60 };
+    expect((await post(base, '/lights/set', { body: kitchen })).status).toBe(204);
+    expect((await post(base, '/lights/set', { body: { id: 'light.bedroom', on: false } })).status).toBe(403);
+    expect((await post(base, '/lights/set', { body: { id: 'light.hall', on: false } })).status).toBe(502);
+    expect(lightCalls[0]).toEqual(kitchen);
+    expect((await post(base, '/lights/sign-out')).status).toBe(204);
+    expect(lightCalls.at(-1)).toBe('sign-out');
+  });
+
+  it('refuses a bad body, and another origin', async () => {
+    const { deps, lightCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/lights/set', { body: { id: 'lock.front_door', on: false } })).status).toBe(400);
+    expect((await post(base, '/lights/set', { body: { id: 'switch.kettle', on: true, brightness: 50 } })).status).toBe(
+      400
+    );
+    expect((await post(base, '/lights/config', { body: { ...config, secret: '' } })).status).toBe(400);
+    const elsewhere = { origin: 'https://evil.example' };
+    expect((await post(base, '/lights/config', { ...elsewhere, body: config })).status).toBe(403);
+    expect((await post(base, '/lights/set', { ...elsewhere, body: { id: 'light.kitchen', on: false } })).status).toBe(
+      403
+    );
+    expect((await fetch(`${base}/lights`, { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
+    expect((await fetch(`${base}/lights/events`)).status).toBe(403);
+    expect(lightCalls).toEqual([]);
+  });
+
+  it('streams where the lights stand to the app, now and after every change', async () => {
+    const { deps, lightListeners } = fakes();
+    const base = await start(deps);
+    const controller = new AbortController();
+    const stream = await fetch(`${base}/lights/events`, { headers: { Origin: ORIGIN }, signal: controller.signal });
+    expect(stream.headers.get('content-type')).toBe('text/event-stream');
+    const reader = (stream.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    const readEvent = async (text = ''): Promise<string> => {
+      if (text.includes('\n\n')) return text;
+      const { value } = await reader.read();
+      return readEvent(text + decoder.decode(value, { stream: true }));
+    };
+    expect(await readEvent()).toBe(`data: ${JSON.stringify(LIGHTS)}\n\n`);
+    const off: LightsStatus = { state: 'signed-out', lights: [] };
+    for (const listener of lightListeners) listener(off);
+    expect(await readEvent()).toBe(`data: ${JSON.stringify(off)}\n\n`);
+    controller.abort();
+    await vi.waitFor(() => {
+      expect(lightListeners.size).toBe(0);
+    });
   });
 });
 
