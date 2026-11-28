@@ -56,15 +56,16 @@ describe('Dynamic setting', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
-  it('is off by default', () => {
-    expect(loadDynamicColour()).toBe(false);
+  it('is on by default', () => {
+    expect(loadDynamicColour()).toBe(true);
   });
 
-  it('remembers on and off', () => {
-    saveDynamicColour(true);
-    expect(loadDynamicColour()).toBe(true);
+  it('remembers off and on', () => {
     saveDynamicColour(false);
     expect(loadDynamicColour()).toBe(false);
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('off');
+    saveDynamicColour(true);
+    expect(loadDynamicColour()).toBe(true);
     expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
   });
 
@@ -73,7 +74,6 @@ describe('Dynamic setting', () => {
     expect(loadDynamicColour()).toBe(true);
     expect(loadThemeColour()).toBe('forest');
     expect(localStorage.getItem('maxmix.themeColour')).toBeNull();
-    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
   });
 
   it('tolerates unavailable storage', () => {
@@ -83,8 +83,8 @@ describe('Dynamic setting', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');
     });
-    expect(loadDynamicColour()).toBe(false);
-    expect(() => saveDynamicColour(true)).not.toThrow();
+    expect(loadDynamicColour()).toBe(true);
+    expect(() => saveDynamicColour(false)).not.toThrow();
   });
 
   it('keeps a colour picked alongside it', () => {

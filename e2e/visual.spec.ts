@@ -209,9 +209,6 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
     });
 
     test(`player screen with Dynamic on at ${size(screen)}`, { tag: ['@player', '@appearance'] }, async ({ page }) => {
-      await page.addInitScript(() => {
-        localStorage.setItem('maxmix.dynamicColour', 'on');
-      });
       await fakeSpotify(page);
       await colouredArt(page);
       await page.setViewportSize(screen);
