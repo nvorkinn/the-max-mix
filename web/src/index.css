@@ -2258,7 +2258,13 @@ body:has(.app-dialog[open]) {
 .about-debug {
   margin-top: auto;
 }
-/* The Parcels page while the owner has no Parcel API key: the steps, and the code for the settings site's account page. */
+/* Notices > Parcels: which ones show and how long delivered ones stay, under the switch. */
+.parcels-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Notices > Parcels while the owner has no Parcel API key: the steps, and the code for the settings site's account page. */
 .parcels-setup {
   display: flex;
   align-items: center;

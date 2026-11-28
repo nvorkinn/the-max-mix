@@ -70,12 +70,12 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
     );
   });
 
-  test("parcels' switch, arriving by and delivered ones stay save from the Parcels page to the server", async ({
+  test("parcels' switch, arriving by and delivered ones stay save from the Notices page to the server", async ({
     page
   }) => {
     const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
     await openSpotifyTab(page, '/?kiosk=1');
-    const settings = await openSettings(page, 'Parcels');
+    const settings = await openSettings(page, 'Notices');
     // A quick run of changes saves only the last, so each waits for the one before it to save.
     const pick = async (group: string, choice: string) => {
       const saves = server.saves.length;
@@ -85,7 +85,7 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       await expect.poll(() => server.saves.length).toBe(saves + 1);
     };
 
-    const notices = settings.getByRole('switch', { name: 'Enabled' });
+    const notices = settings.getByRole('switch', { name: 'Parcels' });
     await expect(notices).toHaveAttribute('aria-checked', 'false');
     await notices.click();
     await expect(notices).toHaveAttribute('aria-checked', 'true');
@@ -98,6 +98,17 @@ test.describe("The kiosk's config from countdown-server", { tag: ['@registration
       { enabled: true, days_ahead: 2, kept_hours: 4 },
       { enabled: true, days_ahead: 2, kept_hours: 24 }
     ]);
+  });
+
+  test('how soon a bank holiday shows saves from the Notices page to the server', async ({ page }) => {
+    const server = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    await openSpotifyTab(page, '/?kiosk=1');
+    const settings = await openSettings(page, 'Notices');
+    const holidays = settings.getByRole('group', { name: 'Bank holidays' });
+    const button = holidays.getByRole('button', { name: '2 days before' });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => server.saves.map(save => save['holidays'])).toEqual([{ days_ahead: 2 }]);
   });
 
   test('a quick run of changes saves only the last one', async ({ page }) => {

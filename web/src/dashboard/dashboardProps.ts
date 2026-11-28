@@ -8,7 +8,7 @@
 // stop's departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
 // the hourly trend while the forecast is held or older than WEATHER_STALE_MS.
 
-import type { DeviceWeather } from 'countdown-api';
+import type { DeviceWeather, TouchscreenHolidays } from 'countdown-api';
 import { getBackgroundImageUrl } from '../../../vendor/countdown-api/src/countdown_api/client';
 import type { DashboardProps } from '../components/Dashboard';
 import { countdownApi } from '../countdown/server';
@@ -20,7 +20,7 @@ import type { Notice } from './data';
 import type { LiveSnapshot } from './live';
 import { toLineIncidents } from './lineIncidents';
 import { toLineStatus } from './lineStatus';
-import { boardNotices } from './notices';
+import { boardNotices, DEFAULT_HOLIDAY_DAYS_AHEAD } from './notices';
 import type { NoticeItem, NoticeKind, NoticeSeverity } from './props';
 import { toWeather } from './weatherViews';
 
@@ -68,9 +68,15 @@ export function toNoticeItem(notice: Notice): NoticeItem {
 const SEVERITY_ORDER: readonly NoticeSeverity[] = ['severe', 'disruption', 'planned', 'info', 'everyday'];
 
 /** The board's rows, most urgent first (notices.ts's order kept among equals). */
-function toNoticeItems(snapshot: LiveSnapshot, now: Date, clockFormat: ClockFormat, language: Language): NoticeItem[] {
+function toNoticeItems(
+  snapshot: LiveSnapshot,
+  now: Date,
+  clockFormat: ClockFormat,
+  language: Language,
+  holidayDaysAhead: TouchscreenHolidays['days_ahead']
+): NoticeItem[] {
   return snapshot.notices
-    ? boardNotices(snapshot.notices, now, clockFormat, language)
+    ? boardNotices(snapshot.notices, now, clockFormat, language, holidayDaysAhead)
         .map(notice => toNoticeItem(notice))
         .map((item, index) => ({ item, index }))
         .toSorted(
@@ -99,12 +105,16 @@ function feedStale(snapshot: LiveSnapshot, now: Date): boolean {
 const olderThan = (time: string | undefined, ms: number, now: Date) =>
   time !== undefined && now.getTime() - Date.parse(time) > ms;
 
-/** The Dashboard's props from `snapshot`, as of `now`, in `language`. */
+/**
+ * The Dashboard's props from `snapshot`, as of `now`, in `language`, with the next holiday from `holidayDaysAhead` days
+ * before it.
+ */
 export function dashboardProps(
   snapshot: LiveSnapshot,
   now: Date,
   clockFormat: ClockFormat,
-  language: Language = DEFAULT_LANGUAGE
+  language: Language = DEFAULT_LANGUAGE,
+  holidayDaysAhead = DEFAULT_HOLIDAY_DAYS_AHEAD
 ): LiveProps {
   const down = feedStale(snapshot, now);
   const boards = toBoards(snapshot.arrivals, now, clockFormat, language);
@@ -127,7 +137,7 @@ export function dashboardProps(
           clockFormat
         }
       : null,
-    notices: { notices: toNoticeItems(snapshot, now, clockFormat, language) },
+    notices: { notices: toNoticeItems(snapshot, now, clockFormat, language, holidayDaysAhead) },
     lineStatus: toLineStatus(snapshot.notices, now),
     incidents: toLineIncidents(snapshot.notices, now, language),
     boards: boards.map(({ stopId, ...board }) => ({ ...board, now, stale: boardStale(stopId) }))

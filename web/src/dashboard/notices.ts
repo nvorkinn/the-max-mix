@@ -15,7 +15,8 @@ import type {
   FloodWarning,
   MetOfficeFeedItem,
   NoticeShort,
-  StoredBinCollections
+  StoredBinCollections,
+  TouchscreenHolidays
 } from 'countdown-api';
 import { getNotices as getNoticesRoute } from '../../../vendor/countdown-api/src/countdown_api/client';
 import type { Client } from '../../../vendor/countdown-api/src/countdown_api/client';
@@ -34,8 +35,14 @@ type Severity = Notice['severity'];
 
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;
-/** A bank holiday is mentioned this far ahead, as on the e-paper screens. */
-const HOLIDAY_AHEAD_DAYS = 31;
+/**
+ * How many days ahead the next bank or public holiday is mentioned when the config doesn't say (its `holidays`, set on
+ * Settings > Notices): from that many days before it, through the day itself.
+ */
+export const DEFAULT_HOLIDAY_DAYS_AHEAD: TouchscreenHolidays['days_ahead'] = 7;
+
+/** The day `days` after `now`'s, at midnight. */
+const daysAfter = (now: Date, days: number) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
 /** Worst first. */
 const SEVERITY_ORDER: readonly Severity[] = ['severe', 'minor', 'info', 'planned', 'everyday'];
 
@@ -575,16 +582,17 @@ export function divisionOf(postcode: string): Division {
   return SCOTTISH_AREAS.has(area) ? 'scotland' : 'england-and-wales';
 }
 
-/** The next of `events` from today, if it is less than a month away. */
+/** The next of `events` from today, if it is at most `daysAhead` days away. */
 export function holidayNotices(
   events: readonly BankHoliday[],
   now: Date,
-  language: Language = DEFAULT_LANGUAGE
+  language: Language = DEFAULT_LANGUAGE,
+  daysAhead = DEFAULT_HOLIDAY_DAYS_AHEAD
 ): Notice[] {
   const today = localDay(now);
-  const limit = localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + HOLIDAY_AHEAD_DAYS));
+  const last = localDay(daysAfter(now, daysAhead));
   const next = events
-    .filter(event => event.date >= today && event.date < limit)
+    .filter(event => event.date >= today && event.date <= last)
     .toSorted((a, b) => a.date.localeCompare(b.date))[0];
   if (!next) return [];
   const [year = 0, month = 1, day = 1] = next.date.split('-').map(Number);
@@ -641,13 +649,17 @@ export function norwegianHolidays(year: number): { day: Date; holiday: string }[
   return holidays.toSorted((x, y) => x.day.getTime() - y.day.getTime());
 }
 
-/** The next Norwegian public holiday from today, if it is less than a month away, as on the e-paper screens. */
-export function norwegianHolidayNotices(now: Date, language: Language = DEFAULT_LANGUAGE): Notice[] {
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const limit = new Date(now.getFullYear(), now.getMonth(), now.getDate() + HOLIDAY_AHEAD_DAYS);
+/** The next Norwegian public holiday from today, if it is at most `daysAhead` days away. */
+export function norwegianHolidayNotices(
+  now: Date,
+  language: Language = DEFAULT_LANGUAGE,
+  daysAhead = DEFAULT_HOLIDAY_DAYS_AHEAD
+): Notice[] {
+  const today = daysAfter(now, 0);
+  const last = daysAfter(now, daysAhead);
   const next = [now.getFullYear(), now.getFullYear() + 1]
     .flatMap(year => norwegianHolidays(year))
-    .find(({ day }) => day >= today && day < limit);
+    .find(({ day }) => day >= today && day <= last);
   if (!next) return [];
   const name = say('notice.holiday.name', { holiday: next.holiday }, language);
   return [
@@ -793,13 +805,14 @@ export function clockChangeNotices(
  * The notice board's notices from what countdown-server gave, as of `now`, worst first, then as the e-paper screens
  * rank them: the lines and the stations before the weather, the floods and the roads, before the clocks changing, the
  * holidays and the bins, before the parcels. Only the parcels and the clocks changing while the board has no postcode (an older
- * countdown-server sends none).
+ * countdown-server sends none). The next holiday shows from `holidayDaysAhead` days before it.
  */
 export function boardNotices(
   device: DeviceNotices,
   now: Date,
   clockFormat: ClockFormat,
-  language: Language = DEFAULT_LANGUAGE
+  language: Language = DEFAULT_LANGUAGE,
+  holidayDaysAhead = DEFAULT_HOLIDAY_DAYS_AHEAD
 ): Notice[] {
   const parcels = parcelNotices(device.parcels?.parcels ?? [], now, language);
   const clocks = clockChangeNotices(now, clockFormat, undefined, language);
@@ -839,8 +852,8 @@ export function boardNotices(
       language
     ),
     ...clocks,
-    ...(device.country === 'GB' ? holidayNotices(events, now, language) : []),
-    ...(norwegian ? norwegianHolidayNotices(now, language) : []),
+    ...(device.country === 'GB' ? holidayNotices(events, now, language, holidayDaysAhead) : []),
+    ...(norwegian ? norwegianHolidayNotices(now, language, holidayDaysAhead) : []),
     // An older countdown-server leaves the bins out.
     ...(norwegian ? binNotices(device.bins, now, language) : []),
     ...parcels

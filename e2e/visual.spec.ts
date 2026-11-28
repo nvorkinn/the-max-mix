@@ -172,16 +172,16 @@ test.describe('Screenshots compared with their baselines', { tag: '@visual' }, (
       }
     );
 
-    test(`settings Parcels page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
+    test(`settings Notices page at ${size(screen)}`, { tag: '@settings' }, async ({ page }) => {
       await page.setViewportSize(screen);
       await fakeCountdownServer(page, {
         ...DEVICE_CONFIGS.owned,
         parcels: { enabled: true, days_ahead: 1, kept_hours: 4 }
       });
       await page.goto('/?kiosk=1');
-      const settings = await openSettings(page, 'Parcels');
+      const settings = await openSettings(page, 'Notices');
       await expect(settings.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(settings).toHaveScreenshot(shotName('settings-parcels', screen), SHOT);
+      await expect(settings).toHaveScreenshot(shotName('settings-notices', screen), SHOT);
     });
 
     test(`player screen at ${size(screen)}`, { tag: '@player' }, async ({ page }) => {

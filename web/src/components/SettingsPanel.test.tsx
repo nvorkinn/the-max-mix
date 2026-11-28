@@ -665,13 +665,13 @@ describe('SettingsPanel', () => {
       within(nav)
         .getAllByRole('button')
         .map(button => button.textContent)
-    ).toEqual(['General', 'Countdown', 'Appearance', 'Spotify', 'Parcels', 'About']);
+    ).toEqual(['General', 'Countdown', 'Appearance', 'Spotify', 'Notices', 'About']);
     await userEvent.click(within(nav).getByRole('button', { name: 'Countdown' }));
     expect(screen.getByRole('region', { name: 'Countdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a station or stop' })).toBeInTheDocument();
   });
 
-  it("saves each of the Parcels page's controls to the server as the whole of the parcels", async () => {
+  it("saves each of the Notices page's parcel controls to the server as the whole of the parcels", async () => {
     history.replaceState(null, '', '/?kiosk=0');
     const onDeviceConfigSave = vi.fn();
     const config = fixture.config as TouchscreenConfig;
@@ -679,10 +679,10 @@ describe('SettingsPanel', () => {
       <SettingsPanel {...base} deviceConfig={config} onDeviceConfigSave={onDeviceConfigSave} />
     );
     await userEvent.click(
-      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Parcels' })
+      within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Notices' })
     );
 
-    const notices = screen.getByRole('switch', { name: 'Enabled' });
+    const notices = screen.getByRole('switch', { name: 'Parcels' });
     const arriving = within(screen.getByRole('group', { name: 'Arriving by' }));
     const kept = within(screen.getByRole('group', { name: 'Delivered ones stay' }));
     expect(notices).not.toBeChecked();
@@ -721,6 +721,33 @@ describe('SettingsPanel', () => {
     expect(kept.getByRole('button', { name: 'A day' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('saves how soon the notice board mentions a bank holiday from the Notices page', async () => {
+    const onDeviceConfigSave = vi.fn();
+    const config = fixture.config as TouchscreenConfig;
+    const { rerender } = render(
+      <SettingsPanel {...base} initialSection="notices" deviceConfig={config} onDeviceConfigSave={onDeviceConfigSave} />
+    );
+    const holidays = within(screen.getByRole('group', { name: 'Bank holidays' }));
+    expect(holidays.getAllByRole('button').map(button => button.textContent)).toEqual([
+      '2 days before',
+      '4 days before',
+      '1 week before',
+      '2 weeks before'
+    ]);
+    expect(holidays.getByRole('button', { name: '4 days before' })).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(holidays.getByRole('button', { name: '2 weeks before' }));
+    expect(onDeviceConfigSave).toHaveBeenCalledExactlyOnceWith('holidays', { days_ahead: 14 });
+
+    // A config from before the setting mentions them a week ahead.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- left out, as a config from before it has none
+    const { holidays: _, ...older } = config;
+    rerender(
+      <SettingsPanel {...base} initialSection="notices" deviceConfig={older} onDeviceConfigSave={onDeviceConfigSave} />
+    );
+    expect(holidays.getByRole('button', { name: '1 week before' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it("says how to set Parcel up while the owner's account has no key, and has the settings once it does", async () => {
     vi.spyOn(deviceServer, 'serverClient').mockReturnValue({ baseUrl: 'https://countdown.build', secret: 'a-secret' });
     const fetchAccount = vi
@@ -729,7 +756,7 @@ describe('SettingsPanel', () => {
     const onShow = vi.fn();
     const props = {
       ...base,
-      initialSection: 'parcels',
+      initialSection: 'notices',
       deviceConfig: fixture.config as TouchscreenConfig,
       onDeviceConfigSave: vi.fn(),
       onShow
@@ -738,9 +765,9 @@ describe('SettingsPanel', () => {
     try {
       render(<SettingsPanel {...props} />);
       // Neither page until the server has said which.
-      expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Parcels' })).not.toBeInTheDocument();
       expect(await screen.findByRole('heading', { name: 'Set up Parcel' })).toBeInTheDocument();
-      expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Parcels' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledOnce();
 
       // The key is pasted on the phone: the settings come up, and the config is read again.
@@ -748,7 +775,7 @@ describe('SettingsPanel', () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(PARCEL_LINK_POLL_MS);
       });
-      expect(screen.getByRole('switch', { name: 'Enabled' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Parcels' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
       expect(onShow).toHaveBeenCalledTimes(2);
     } finally {
@@ -764,12 +791,12 @@ describe('SettingsPanel', () => {
     render(
       <SettingsPanel
         {...base}
-        initialSection="parcels"
+        initialSection="notices"
         deviceConfig={config as TouchscreenConfig}
         onDeviceConfigSave={onDeviceConfigSave}
       />
     );
-    const notices = screen.getByRole('switch', { name: 'Enabled' });
+    const notices = screen.getByRole('switch', { name: 'Parcels' });
     expect(notices).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Any day' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '4 hours' })).toHaveAttribute('aria-pressed', 'true');

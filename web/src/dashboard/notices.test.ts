@@ -169,7 +169,7 @@ describe('the notice board', () => {
     expect(summaries[2]).toBe('Yellow warning: fog');
   });
 
-  it('mentions the next bank holiday once it is less than a month away', () => {
+  it('mentions the next bank holiday from a week before it', () => {
     expect(boardNotices(device, new Date(2026, 11, 20), '24h').at(-1)).toMatchObject({
       kind: 'holiday',
       severity: 'info',
@@ -180,6 +180,15 @@ describe('the notice board', () => {
       { summary: 'Mon 28 Dec – Boxing Day', detail: 'Boxing Day (substitute day)' }
     ]);
     expect(holidayNotices(events, new Date(2026, 10, 16))).toEqual([]);
+    expect(holidayNotices(events, new Date(2026, 11, 18))[0]?.summary).toBe('Fri 25 Dec – Christmas Day');
+    expect(holidayNotices(events, new Date(2026, 11, 17))).toEqual([]);
+  });
+
+  it('mentions the next bank holiday as many days ahead as the settings say', () => {
+    expect(holidayNotices(events, new Date(2026, 11, 21), 'en', 4)[0]?.summary).toBe('Fri 25 Dec – Christmas Day');
+    expect(holidayNotices(events, new Date(2026, 11, 20), 'en', 4)).toEqual([]);
+    expect(holidayNotices(events, new Date(2026, 11, 11), 'en', 14)[0]?.summary).toBe('Fri 25 Dec – Christmas Day');
+    expect(boardNotices(device, new Date(2026, 11, 20), '24h', 'en', 2).map(n => n.kind)).not.toContain('holiday');
   });
 
   it('shows a status only while it is in force, not days ahead', () => {
@@ -534,7 +543,7 @@ describe('the other notices the e-paper screens show', () => {
     );
   });
 
-  it("mentions Norway's next public holiday on a Norwegian board, once it is less than a month away", () => {
+  it("mentions Norway's next public holiday on a Norwegian board, from a week before it", () => {
     expect(boardNotices(oslo, new Date(2026, 11, 20), '24h')).toMatchObject([
       {
         kind: 'holiday',
@@ -547,6 +556,8 @@ describe('the other notices the e-paper screens show', () => {
     expect(norwegianHolidayNotices(new Date(2026, 4, 16))[0]?.summary).toBe('Tomorrow – Constitution Day');
     expect(norwegianHolidayNotices(new Date(2026, 11, 26))[0]?.summary).toBe('Today – Boxing Day');
     expect(norwegianHolidayNotices(new Date(2026, 10, 17))).toEqual([]);
+    expect(norwegianHolidayNotices(new Date(2026, 11, 11))).toEqual([]);
+    expect(norwegianHolidayNotices(new Date(2026, 11, 11), 'en', 14)[0]?.summary).toBe('Fri 25 Dec – Christmas Day');
     // Not on a British board, which has its bank holidays.
     expect(boardNotices(device, new Date(2026, 11, 20), '24h').map(n => n.title)).not.toContain(
       'Upcoming public holiday'

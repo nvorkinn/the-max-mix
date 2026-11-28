@@ -802,6 +802,7 @@ export default function TabletView() {
           <DashboardScreen
             tabBar={{ ...tabBar, onSearch: null, nowPlaying: songShown ? nowPlaying : null }}
             groupByRoute={ownedConfig?.arrivals.group_by_route ?? false}
+            holidayDaysAhead={ownedConfig?.holidays?.days_ahead}
           />
         </section>
         <section
