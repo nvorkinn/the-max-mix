@@ -59,7 +59,7 @@ and the songs appear in the queue after a moment.
   kiosk** (tap twice to confirm).
 - **The screen is stuck or blank:** it usually recovers by itself within a few minutes. If not, Settings, **Reboot Pi**,
   or unplug it for ten seconds.
-- **Updates:** they install by themselves and the screen restarts at 4:30 in the morning. To get one now, Settings,
+- **Updates:** they install by themselves and the screen restarts as soon as one is in. To get one now, Settings,
   **Update now**. Don't unplug it while an update is running.
 - **Spotify says you can't use it:** check that your account is Premium, then tell Nikolai, who may need to add your
   account to the app.

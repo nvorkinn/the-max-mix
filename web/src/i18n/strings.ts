@@ -349,15 +349,11 @@ export const STRINGS = {
   },
   'about.up_to_date': { en: 'Up to date.', nb: 'Oppdatert.' },
   'about.install': { en: 'Install', nb: 'Installer' },
-  'about.installed': {
-    en: '{version} is installed. Restart to finish.',
-    nb: '{version} er installert. Start på nytt for å fullføre.'
-  },
+  'about.installed': { en: '{version} is installed.', nb: '{version} er installert.' },
   'about.failed': {
     en: '{version} did not start on this Pi, so it is not installed.',
     nb: '{version} startet ikke på denne Pi-en, så den blir ikke installert.'
   },
-  'about.restart_now': { en: 'Restart now', nb: 'Start på nytt nå' },
   'about.up_to_date_at': { en: 'Up to date as of {time}.', nb: 'Oppdatert per {time}.' },
   'about.check': { en: 'Check for updates', nb: 'Se etter oppdateringer' },
   'about.restart': { en: 'Restart kiosk', nb: 'Start kiosken på nytt' },

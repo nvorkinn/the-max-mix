@@ -288,8 +288,7 @@ Pi's own settings in `/data/the-max-mix/kiosk.env` ([image/README.md](image/READ
 - **Channels:** `KIOSK_UPDATE_CHANNEL` in `kiosk.env` picks what a Pi follows. `stable` (the default) is the latest
   release; `dev` is every merge to `main`; `branch-<name>` is a branch built by hand (Actions > Image bundle > Run
   workflow) or a pull request with the `pi-bundle` label. `kiosk-update.timer` checks every 2 minutes (a stable Pi
-  every 6 hours) with one request to the bundle's URL. A stable Pi restarts into an update at 04:30 or on **Restart**;
-  dev and branch Pis restart straight away.
+  every 6 hours) with one request to the bundle's URL. Every Pi restarts into an update as soon as it is installed.
 - **Releases** are what stable Pis follow. Create a release for a new tag on `main` with GitHub's **New release** form,
   or push a version tag from `main` (`git tag v1.12.0 && git push origin v1.12.0`): the Release workflow deploys the web
   app to the server, builds the bundle from the tag in parallel and, once both have worked, publishes the GitHub release
@@ -326,8 +325,7 @@ Updating, from the popup or from Settings, opens a full-screen update console. T
 kiosk service (`ws://127.0.0.1:7341/power/update`); connecting starts `kiosk-update.service`, and the service sends its
 journal (`journalctl -u kiosk-update`, with the journal's timestamps) as the lines are written. RAUC's
 `Update progress: N%` lines drive the console's bar instead of being shown. Once the bundle is installed in the other
-slot, the console and the About page offer **Restart now**; the update console can be closed whenever the update has
-ended.
+slot, the Pi restarts into it by itself; the update console can be closed whenever the update has ended.
 
 While the screen sleeps the app asks Spotify about playback every 45 seconds instead of every 4 and stops reading the
 queue, so an idle tablet does not use up the account's rate limit.

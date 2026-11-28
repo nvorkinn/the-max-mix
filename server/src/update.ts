@@ -136,9 +136,9 @@ function systemctl(io: UpdateIO, args: string[]): Promise<number | null> {
 
 /**
  * Runs kiosk-update.service (check, then install anything newer, as the timer does) while its journal goes to the app,
- * RAUC's progress lines among them. `installed` then says what waits for a restart; on the dev and branch channels the
- * unit restarts the Pi into it at once, which ends the connection. `signal` aborts the streaming (the app went away):
- * the unit goes on by itself.
+ * RAUC's progress lines among them. The unit restarts the Pi into what it installed at once, which ends the connection;
+ * `installed` says what still waits for a restart when that did not happen. `signal` aborts the streaming (the app
+ * went away): the unit goes on by itself.
  */
 export async function runUpdate(
   send: Send,
