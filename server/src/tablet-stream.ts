@@ -46,7 +46,7 @@ const startRecorder: StartRecorder = () =>
       '--target',
       TABLET_SINK,
       '-P',
-      '{ stream.capture.sink=true node.dont-reconnect=true }',
+      '{ stream.capture.sink=true }',
       '--rate',
       String(RATE),
       '--channels',
