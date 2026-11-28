@@ -61,6 +61,8 @@
   --faint: #7785a8;
   --border: #33405f;
   --accent: #4a9d5e;
+  /* The sung lyrics: one solid, deep shade of the colour, the deeper end of its gradient. */
+  --lyric-sung: #2e8b6e;
   --accent-ink: #fff;
   --accent-soft: color-mix(in srgb, #4a9d5e 14%, transparent);
   --focus: color-mix(in srgb, #4a9d5e 60%, #fff);
@@ -126,7 +128,8 @@
     --dynamic-to 1.5s ease,
     --dynamic-mark-from 1.5s ease,
     --dynamic-mark-to 1.5s ease,
-    --dynamic-mark-ink 1.5s ease;
+    --dynamic-mark-ink 1.5s ease,
+    --dynamic-lyric 1.5s ease;
 }
 /*
   Colour choices from the settings (web/src/utils/themeColour.ts), each bright enough to read on the navy, with a white icon
@@ -137,33 +140,40 @@
   --colour-fill: linear-gradient(135deg, #6cc070, #2e8b6e);
 }
 .tablet-container[data-colour='navy'] {
+  --lyric-sung: #4a5fd9;
   --accent: #5b8def;
   --colour-fill: linear-gradient(135deg, #6fa8ff, #4a5fd9);
 }
 .tablet-container[data-colour='teal'] {
+  --lyric-sung: #1f7fa0;
   --accent: #2a9d9d;
   --colour-fill: linear-gradient(135deg, #3cc0b0, #1f7fa0);
 }
 .tablet-container[data-colour='plum'] {
+  --lyric-sung: #9a4a9e;
   --accent: #c25ea8;
   --colour-fill: linear-gradient(135deg, #e070b8, #9a4a9e);
 }
 .tablet-container[data-colour='terracotta'] {
+  --lyric-sung: #c9483a;
   --accent: #dd6b3d;
   --colour-fill: linear-gradient(135deg, #f0894a, #c9483a);
 }
 .tablet-container[data-colour='pink'] {
+  --lyric-sung: #ff4f9a;
   --accent: #ff69b4;
   --accent-ink: #3b1a2a;
   --colour-fill: linear-gradient(135deg, #ff8cc6, #ff4f9a);
 }
 .tablet-container[data-colour='yellow'] {
+  --lyric-sung: #e09a1a;
   --accent: #e0b020;
   --accent-ink: #1f1a05;
   --colour-fill: linear-gradient(135deg, #f5c842, #e09a1a);
 }
 /* Black would vanish on the navy, so it is a silver. */
 .tablet-container[data-colour='black'] {
+  --lyric-sung: #aab3c5;
   --accent: #dfe3ee;
   --accent-ink: #111;
   --colour-fill: linear-gradient(135deg, #f0f2f7, #aab3c5);
@@ -187,6 +197,11 @@
   syntax: '<color>';
   inherits: true;
   initial-value: #4a9d5e;
+}
+@property --dynamic-lyric {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2e8b6e;
 }
 @property --dynamic-accent-ink {
   syntax: '<color>';
@@ -226,6 +241,7 @@
 .tablet-container[data-colour='violet'] {
   --accent: #a95be8;
   --colour-fill: linear-gradient(135deg, #e94dae, #913fcb);
+  --lyric-sung: #913fcb;
   --focus: #de9eff;
   --glow: 0 0 14px rgb(193 77 225 / 30%);
 }
@@ -244,6 +260,7 @@
   --focus: color-mix(in srgb, var(--dynamic-accent) 60%, #fff);
   --play-fill: linear-gradient(135deg, var(--dynamic-from), var(--dynamic-to));
   --glow: 0 0 14px color-mix(in srgb, var(--dynamic-accent) 30%, transparent);
+  --lyric-sung: var(--dynamic-lyric);
 }
 
 /*
@@ -3414,14 +3431,12 @@ body:has(.app-dialog[open]) {
   scroll-behavior: auto;
 }
 /*
-  Sung lines take the play button's own fill, the chosen colour's gradient or Dynamic's from the album art, so they are
-  as rich as the button rather than the lighter flat shade the title uses; lines still to come stay faint.
+  Sung lines take one solid, deep shade of the chosen colour, or with Dynamic on of the album art's, rather than the
+  lighter shade the title uses; lines still to come stay faint.
 */
 .lyrics-list.is-synced .lyrics-line.is-reached,
 .lyrics-list.is-synced .lyrics-word.is-reached {
-  background: var(--play-fill);
-  background-clip: text;
-  color: transparent;
+  color: var(--lyric-sung);
 }
 /* Sync mode (the Lyrics button tapped again): every line is a button; tapping the one being sung moves the song's timing to match. */
 .lyrics-sync-line {

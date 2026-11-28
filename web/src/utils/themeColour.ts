@@ -127,6 +127,8 @@ export interface DynamicPalette {
   '--dynamic-mark-from': string;
   '--dynamic-mark-to': string;
   '--dynamic-mark-ink': string;
+  /** The sung lyrics: one solid, deep shade. */
+  '--dynamic-lyric': string;
 }
 
 /** The page: the darkest the highlights have to read on. The Spotify tab's glass is about as dark. */
@@ -177,6 +179,17 @@ function readableAccent(hue: number, saturation: number, lightness: number): str
 }
 
 /**
+ * The sung lyrics: the cover's colour, deep rather than light, and only as light as it takes for large type to read on
+ * the navy (3:1).
+ */
+function deepShade(hue: number, saturation: number): string {
+  const s = Math.min(saturation, 0.75);
+  let l = 0.3;
+  while (l < 0.6 && contrast(hslToRgb(hue, s, l), PAGE) < 3) l += 0.01;
+  return hsl(hue, s, l);
+}
+
+/**
  * Turns the cover's two dominant colours into Dynamic's colours. The title and highlights take a lighter, softened
  * shade of the first colour; the text stays the app's own. The play button runs a gradient between the two colours,
  * like Violet's, kept in a middle lightness so it stands out, with a white or dark icon on it, whichever reads better.
@@ -197,7 +210,8 @@ export function dynamicPalette([first, second]: readonly [Rgb, Rgb]): DynamicPal
     '--dynamic-accent-ink': icon,
     '--dynamic-mark-from': fromColour,
     '--dynamic-mark-to': toColour,
-    '--dynamic-mark-ink': icon
+    '--dynamic-mark-ink': icon,
+    '--dynamic-lyric': deepShade(hue, saturation)
   };
 }
 
@@ -216,6 +230,8 @@ export function basePalette(colour: ThemeColour): DynamicPalette {
     '--dynamic-accent-ink': ink,
     '--dynamic-mark-from': from,
     '--dynamic-mark-to': to,
-    '--dynamic-mark-ink': ink
+    '--dynamic-mark-ink': ink,
+    // The deeper end of its gradient, as the sung lyrics show it with Dynamic off.
+    '--dynamic-lyric': to
   };
 }
