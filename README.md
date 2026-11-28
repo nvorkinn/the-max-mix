@@ -259,7 +259,8 @@ screen can be a DSI panel or an HDMI one, of any size, resolution or aspect rati
 as the Raspberry Pi Touch Display 2, a 1200x1920 portrait panel); the Pi reads the screen's mode from its EDID at each
 start, and the kiosk's settings can rotate or scale it. With no connection, the app opens its Wi-Fi settings. Flash it with Raspberry Pi Imager from the
 list at `https://github.com/nvorkinn/the-max-mix/releases/download/flash-image/the-max-mix.rpi-imager-manifest` and power
-on. A card flashed again starts as a new kiosk: its first boot formats the data partition, which Imager leaves as it was.
+on. Imager's device list there names each Pi with each screen it goes with; choosing the screen gives the card that
+screen's own boot settings ([image/README.md](image/README.md#the-pis-own-settings)). A card flashed again starts as a new kiosk: its first boot formats the data partition, which Imager leaves as it was.
 
 **The whole OS is one image**, built from [`image/`](image/README.md): the packages, the files over the root file
 system, the systemd units, the accounts, the boot settings, the web app and the kiosk server. The root file system

@@ -14,7 +14,8 @@
 //    the Pi's own: the host name, the admin account's SSH keys, and the Wi-Fi as a NetworkManager profile. Imager writes
 //    them to the card's first partition (rpi-imager's downloadthread.cpp), the autoboot one, which nothing else mounts,
 //    so --card defaults to it. The card's copies are then deleted, as they hold the Wi-Fi password, so the next boot
-//    finds nothing to take in.
+//    finds nothing to take in. So do the config.txt lines of the screen chosen in Imager (CARD_CONFIG), which the
+//    flash image for that screen carries: they become /data/the-max-mix/config.txt.
 // 4. The Pi's identity: a machine ID the first time, and the host name from /data, which the kernel gets here because
 //    systemd set it from the image's /etc/hostname before /data was there. A Pi flashed without Imager's settings names
 //    itself the-max-mix-<the last 4 hex digits of its serial number>, so every Pi has its own name with nothing set up.
@@ -51,6 +52,12 @@ export const RESET_FLAG = '.kiosk-reset';
  * flash; the first boot takes it off before it formats the data partition, so the next boot formats nothing.
  */
 export const FRESH_CARD = 'the-max-mix-fresh-card';
+/**
+ * The flash image for a screen that needs its own config.txt lines (image/screens.json) puts them in this file on the
+ * card's first partition, and in slot A's config.txt (image/build.sh screen_card). The first boot moves the file to
+ * /data, from where the updater writes the lines into every later slot.
+ */
+export const CARD_CONFIG = 'the-max-mix-config.txt';
 /**
  * What a reset keeps: the Pi's name and its settings, which belong to the Pi and its screen, not to its owner. Its
  * config.txt lines are among them: without a screen's dtoverlay the Pi shows nothing after its next update.
@@ -259,6 +266,20 @@ export async function importImager(
 }
 
 /**
+ * Moves the screen's config.txt lines from the card folder `card` (CARD_CONFIG) onto the data partition mounted at
+ * `data`. False when the card has none.
+ */
+export async function didImportOwnConfig(card: string, data: string): Promise<boolean> {
+  const file = path.join(card, CARD_CONFIG);
+  const lines = await readOptional(file);
+  if (lines === undefined) return false;
+  await writeAtomic(path.join(data, DATA_PATHS.ownConfig), lines, 0o644);
+  // Off the card once it is on /data, so that a later boot does not put it over lines changed there since.
+  await rm(file, { force: true });
+  return true;
+}
+
+/**
  * The name a Pi with no name of its own gets: the-max-mix-<the last 4 hex digits of its serial number>, or plain
  * the-max-mix when the serial number cannot be read.
  */
@@ -460,6 +481,10 @@ async function main(): Promise<void> {
     }
 
     for (const [card, folder] of cards) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await didImportOwnConfig(folder, mountpoint)) {
+        console.log(`Took in the screen's config.txt lines from ${card}`);
+      }
       // eslint-disable-next-line no-await-in-loop
       const imported = await importImager(folder, mountpoint);
       if (!imported) continue;

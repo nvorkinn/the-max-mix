@@ -18,7 +18,9 @@
 #                                         (dev, branch-<name>). Nothing is compiled here.
 #   build.sh card <the-max-mix.raucb> <out>
 #                                         a promotion: that bundle's slot images, unchanged, on a six-partition card
-#                                         -> <out>/the-max-mix.img.zst and the-max-mix.rpi-imager-manifest
+#                                         -> <out>/the-max-mix.img.zst and the-max-mix.rpi-imager-manifest, plus
+#                                         the-max-mix-<image>.img.zst for each screen in screens.json that needs its
+#                                         own config.txt lines: the same card with those lines on it
 #
 # The bundle's file systems are built to come out the same from the same input (fixed UUIDs and hash seed, every file
 # dated SOURCE_DATE_EPOCH), so that RAUC's adaptive update downloads only the blocks a release changed.
@@ -354,6 +356,32 @@ EOF
   step "Built $app.tar.gz ($(mib "$app.tar.gz")) for OS $os"
 }
 
+# Puts a screen's own config.txt lines on the card file $1, for screens.json's image $2: into slot A's config.txt, so the
+# first boot already shows on the screen, and on the first partition as the-max-mix-config.txt, which the first boot
+# moves to /data/the-max-mix/config.txt (kiosk-first-boot.ts CARD_CONFIG) so that every update writes them into its slot.
+screen_card() {
+  local card=$1 image=$2 screens=$3
+  local autoboot="$card@@$((2048 * 512))" boot_a="$card@@$(((2048 + AUTOBOOT_MIB * 2048) * 512))"
+  local lines=$work/own-config.txt config=$work/config.txt
+  jq -r --arg image "$image" \
+    '.[] | select((.image // "") == $image) | .config[] | gsub("^\\s+|\\s+$"; "") | select(. != "")' "$screens" > "$lines"
+  [[ -s $lines ]] || {
+    echo "screens.json: $image has no config lines" >&2
+    exit 1
+  }
+  MTOOLS_SKIP_CHECK=1 mcopy -i "$autoboot" "$lines" ::/the-max-mix-config.txt
+  # The same block, between the same two lines, as the updater writes (image-update.ts configWithOwn), so that
+  # `kiosk-update boot-config` finds it there and changes nothing.
+  MTOOLS_SKIP_CHECK=1 mcopy -n -i "$boot_a" ::/config.txt "$config"
+  local image_config
+  image_config=$(< "$config")
+  printf '%s\n\n%s\n[all]\n%s\n%s\n' "$image_config" \
+    "# The Pi's own settings, from /data/the-max-mix/config.txt. Edit them there: kiosk-update writes them here." \
+    "$(< "$lines")" \
+    "# The end of the Pi's own settings." > "$config.new"
+  MTOOLS_SKIP_CHECK=1 mcopy -o -i "$boot_a" "$config.new" ::/config.txt
+}
+
 card() {
   local raucb=$1 out=$2
   work=$(mktemp -d)
@@ -406,42 +434,88 @@ card() {
   # used before still has there.
   truncate --size=$((end_of_file * 512)) "$card"
 
-  step "Hashing and compressing the card"
+  # One card for each of screens.json's images: the plain one, for the screens the Pi finds by itself, and one for each
+  # screen that needs its own config.txt lines. Imager writes the file and no more, so the screen chosen there can
+  # reach the Pi only as a card of its own.
+  local screens=$here/screens.json
+  jq -e 'all(.[];
+      (.name | type == "string") and (.pis | length > 0)
+      and ((.image // "") | test("^[a-z0-9-]*$"))
+      and (((.image // "") == "") == ((.config // []) | length == 0)))
+    and ([.[] | .image // "" | select(. != "")] | length == (unique | length))' "$screens" > /dev/null \
+    || {
+      echo "screens.json: each screen needs a name and pis, and an image of its own exactly when it has config lines" >&2
+      exit 1
+    }
   mkdir -p "$out"
-  local extract_size extract_sha256
+  local url=${IMAGE_URL:?IMAGE_URL must be where the plain card will be downloaded from}
+  local extract_size images_json=$work/images.json image
   extract_size=$(stat --format=%s "$card")
-  extract_sha256=$(sha256sum "$card" | cut -d' ' -f1)
-  zstd --quiet --threads=0 -9 --stdout "$card" > "$out/the-max-mix.img.zst"
+  : > "$images_json"
+  while IFS= read -r image; do
+    local file=the-max-mix.img.zst this=$card this_url=$url
+    if [[ -n $image ]]; then
+      file=the-max-mix-$image.img.zst
+      this=$work/the-max-mix-$image.img
+      this_url=${url%.img.zst}-$image.img.zst
+      step "Writing the card for $image"
+      cp --sparse=always "$card" "$this"
+      screen_card "$this" "$image" "$screens"
+    fi
+    step "Hashing and compressing $file"
+    zstd --quiet --threads=0 -9 --stdout "$this" > "$out/$file"
+    jq --null-input --arg image "$image" --arg url "$this_url" \
+      --arg extract_sha256 "$(sha256sum "$this" | cut -d' ' -f1)" \
+      --argjson download_size "$(stat --format=%s "$out/$file")" \
+      --arg download_sha256 "$(sha256sum "$out/$file" | cut -d' ' -f1)" \
+      '{image: $image, url: $url, extract_sha256: $extract_sha256, download_size: $download_size,
+        download_sha256: $download_sha256}' >> "$images_json"
+    [[ -z $image ]] || rm "$this"
+    step "Built $out/$file ($(mib "$out/$file")) from $version"
+  done < <(jq -r '[.[] | .image // ""] | unique | .[]' "$screens")
+
+  # Imager's list: a device for each Pi and screen that go together, and the card for each. A device's tag names its
+  # card, so choosing the device leaves exactly one OS to choose.
   local upstream_json=$work/upstream.json
   upstream > "$upstream_json"
   jq --null-input \
     --slurpfile upstream "$upstream_json" \
-    --arg url "${IMAGE_URL:?IMAGE_URL must be where the card will be downloaded from}" \
+    --slurpfile screens "$screens" \
+    --slurpfile images "$images_json" \
     --arg version "$version" \
     --argjson extract_size "$extract_size" \
-    --arg extract_sha256 "$extract_sha256" \
-    --argjson download_size "$(stat --format=%s "$out/the-max-mix.img.zst")" \
-    --arg download_sha256 "$(sha256sum "$out/the-max-mix.img.zst" | cut -d' ' -f1)" \
     --arg date "$(date -u +%F)" \
-    '$upstream[0].os as $base | {
-      imager: {devices: [$upstream[0].devices[] | select(.tags | any(IN("pi4-64bit", "pi5-64bit")))]},
-      os_list: [{
+    'def tag: "the-max-mix" + (if . == "" then "" else "-" + . end);
+    $upstream[0].os as $base | {
+      imager: {devices: [
+        $upstream[0].devices[] as $pi | $screens[0][] | select(.pis | any(IN($pi.tags[])))
+        | ($pi | del(.default)) + {
+            name: "\($pi.name) with \(.name)",
+            description: (.description // $pi.description),
+            tags: [.image // "" | tag],
+            matching_type: "exclusive"
+          }
+      ]},
+      os_list: [$images[] | . as $card | {
         name: "The Max Mix",
-        description: "THE MAX MIX kiosk \($version), Pi 4 and Pi 5. Updates itself.",
+        description: (
+          "THE MAX MIX kiosk \($version). Updates itself."
+          + ([$screens[0][] | select((.image // "") == $card.image) | .name] | " For: " + join(", ") + ".")
+        ),
         icon: $base.icon,
         website: "https://github.com/nvorkinn/the-max-mix",
-        url: $url,
+        url: $card.url,
         extract_size: $extract_size,
-        extract_sha256: $extract_sha256,
-        image_download_size: $download_size,
-        image_download_sha256: $download_sha256,
+        extract_sha256: $card.extract_sha256,
+        image_download_size: $card.download_size,
+        image_download_sha256: $card.download_sha256,
         release_date: $date,
         init_format: $base.init_format,
-        devices: [$base.devices[] | select(IN("pi4-64bit", "pi5-64bit"))],
+        devices: [$card.image | tag],
         capabilities: ($base.capabilities // [])
       }]
     }' > "$out/the-max-mix.rpi-imager-manifest"
-  step "Built $out/the-max-mix.img.zst ($(mib "$out/the-max-mix.img.zst")) from $version"
+  step "Built $out/the-max-mix.rpi-imager-manifest"
 }
 
 usage() {
