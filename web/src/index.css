@@ -2531,6 +2531,10 @@ body:has(.app-dialog[open]) {
   overflow-y: auto;
 }
 .lights-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
   max-width: 520px;
   color: var(--muted);
   font-size: 22px;

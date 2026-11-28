@@ -12,6 +12,7 @@ import {
   callService,
   exchangeCode,
   followEntities,
+  homeAssistantOrigin,
   httpsOrigin,
   lightState,
   refreshAccess,
@@ -34,6 +35,16 @@ const formOf = (init: RequestInit | undefined) => Object.fromEntries(new URLSear
 
 afterEach(async () => {
   await Promise.all(folders.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
+});
+
+describe('homeAssistantOrigin', () => {
+  it('is the origin of an http or https address', () => {
+    expect(homeAssistantOrigin('https://home.example/lovelace')).toBe('https://home.example');
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- plain http is what it takes
+    expect(homeAssistantOrigin('http://homeassistant.local:8123/')).toBe('http://homeassistant.local:8123');
+    expect(homeAssistantOrigin('ftp://home.example')).toBeNull();
+    expect(homeAssistantOrigin('homeassistant.local')).toBeNull();
+  });
 });
 
 describe('httpsOrigin', () => {
@@ -242,6 +253,19 @@ describe('followEntities', () => {
     socket.say({ id: 2, type: 'event', event: { a: { other: true } } });
     socket.emit('message', Buffer.from('not json'));
     expect(events).toEqual([{ a: {} }]);
+  });
+
+  it('follows a plain-http Home Assistant over ws', () => {
+    const urls: string[] = [];
+    const follow = followEntities(url => {
+      urls.push(url);
+      return new FakeSocket() as unknown as WebSocket;
+    });
+    const quiet = { onOpen: vi.fn(), onEvent: vi.fn(), onEnd: vi.fn() };
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- plain http is what it takes
+    follow('http://homeassistant.local:8123', 'access-1', [], quiet);
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- plain ws is what it then uses
+    expect(urls).toEqual(['ws://homeassistant.local:8123/api/websocket']);
   });
 
   it('ends once: when the token is not taken, or when the connection goes', () => {

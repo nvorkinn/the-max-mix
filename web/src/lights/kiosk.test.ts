@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeEventSource, latestFakeEventSource, resetFakeEventSources } from '../test/fakeEventSource';
-import { configureLights, parseLightsStatus, setLight, watchLights } from './kiosk';
+import { configureLights, parseLightsStatus, setLight, startLightsSignIn, watchLights } from './kiosk';
 import type { LightsStatus } from './kiosk';
 
 const CLIENT = { baseUrl: 'https://countdown.build', secret: 'a-device-secret' };
@@ -70,6 +70,21 @@ describe('watchLights', () => {
     expect(seen).toEqual([STATUS]);
     stop();
     expect(stream.isClosed).toBe(true);
+  });
+});
+
+describe('startLightsSignIn', () => {
+  it('answers the login page the service gives, or null when it gives none', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ url: 'https://home.example/auth/authorize' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(startLightsSignIn()).resolves.toBe('https://home.example/auth/authorize');
+    expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:7341/lights/sign-in', { method: 'POST' });
+    fetchMock.mockResolvedValue(new Response(null, { status: 409 }));
+    await expect(startLightsSignIn()).resolves.toBeNull();
+    fetchMock.mockRejectedValue(new TypeError('offline'));
+    await expect(startLightsSignIn()).resolves.toBeNull();
   });
 });
 

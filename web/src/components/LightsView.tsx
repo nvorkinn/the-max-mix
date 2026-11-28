@@ -63,16 +63,21 @@ function LightColumn({ light, onChange }: Readonly<{ light: Light; onChange: Lig
 }
 
 /** The Lights tab: the lights the kiosk's owner allowed, each to turn on, off and (where it dims) up and down. */
-export default function LightsView({ status, change }: Readonly<Lights>) {
+export default function LightsView({ status, change, signIn }: Readonly<Lights>) {
   const t = useT();
   if (!status) return null;
   const notice = NOTICES[status.state] ?? (status.lights.length === 0 ? 'lights.none' : null);
   return (
     <main className="lights-view">
       {notice ? (
-        <p className="lights-notice" role="status">
-          {t(notice)}
-        </p>
+        <div className="lights-notice">
+          <p role="status">{t(notice)}</p>
+          {status.state === 'signed-out' && (
+            <button type="button" className="button" onClick={signIn}>
+              {t('lights.sign_in')}
+            </button>
+          )}
+        </div>
       ) : (
         <ul className="lights-list">
           {status.lights.map(light => (

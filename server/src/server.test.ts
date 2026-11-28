@@ -218,6 +218,11 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
         if (request.id === 'light.bedroom') return Promise.resolve('not-allowed');
         return Promise.resolve(request.id === 'light.hall' ? 'failed' : 'done');
       },
+      startSignIn: () => (lightCalls.length > 0 ? null : 'https://home.example/auth/authorize?state=s1'),
+      finishSignIn: (state, code) => {
+        lightCalls.push({ state, code });
+        return Promise.resolve(state === 's1');
+      },
       signOut: () => {
         lightCalls.push('sign-out');
         return Promise.resolve();
@@ -436,6 +441,25 @@ describe('the lights', () => {
     expect((await fetch(`${base}/lights`, { headers: { Origin: 'https://evil.example' } })).status).toBe(403);
     expect((await fetch(`${base}/lights/events`)).status).toBe(403);
     expect(lightCalls).toEqual([]);
+  });
+
+  it('starts a sign-in for the app, and takes what the login comes back with from any page', async () => {
+    const { deps, lightCalls } = fakes();
+    const base = await start(deps);
+    expect((await post(base, '/lights/sign-in', { origin: 'https://evil.example' })).status).toBe(403);
+    const started = await post(base, '/lights/sign-in');
+    expect(await started.json()).toEqual({ url: 'https://home.example/auth/authorize?state=s1' });
+    // The browser comes back from Home Assistant's page: a navigation, with no Origin.
+    const back = await fetch(`${base}/lights/callback?code=c1&state=s1`, { redirect: 'manual' });
+    expect(back.status).toBe(303);
+    expect(back.headers.get('location')).toBe(`${ORIGIN}/?kiosk=1`);
+    expect(lightCalls).toEqual([{ state: 's1', code: 'c1' }]);
+    // Without a code there is nothing to take, and the browser still goes back to the app.
+    const cancelled = await fetch(`${base}/lights/callback?state=s1`, { redirect: 'manual' });
+    expect(cancelled.status).toBe(303);
+    expect(lightCalls).toHaveLength(1);
+    // The fake has no lights once something was asked of it.
+    expect((await post(base, '/lights/sign-in')).status).toBe(409);
   });
 
   it('streams where the lights stand to the app, now and after every change', async () => {

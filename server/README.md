@@ -126,7 +126,7 @@ The app reaches everything else about Sonos here too:
 ## Lights
 
 The kiosk can switch the lights its owner allows, which are Home Assistant's. Which ones is in the kiosk's config on
-countdown-server, its `lights` section: Home Assistant's address (https only) and up to 32 entities (a `light`, a
+countdown-server, its `lights` section: Home Assistant's address and up to 32 entities (a `light`, a
 `switch` or a `group`), each with an optional name. A config without the section has no lights.
 
 - **The list is read here, not sent by the app.** The app says where the config is (`POST /lights/config`, with the
@@ -136,8 +136,14 @@ countdown-server, its `lights` section: Home Assistant's address (https only) an
   login for apps: a one-time code is exchanged for a refresh token (`home-assistant.ts`), kept in
   `~/.local/state/the-max-mix/home-assistant.json`, which only the `kiosk` user can read. It outlives updates and a
   factory reset wipes it. Access tokens last 30 minutes and are made from it as needed; none of them reaches the app.
-  A sign-in Home Assistant no longer takes is forgotten, and the lights are then `signed-out`. How the code gets to
-  the Pi (the sign-in screen) is not built yet: `Lights.signIn` takes it.
+  A sign-in Home Assistant no longer takes is forgotten, and the lights are then `signed-out`.
+- **Signing in happens on the kiosk's own screen.** The Lights tab's Sign in button asks for Home Assistant's login
+  page (`POST /lights/sign-in`) and the kiosk's browser goes to it, as the app `http://127.0.0.1:7341/`. Home Assistant
+  sends the browser back to `GET /lights/callback` with a one-time code and the `state` this service made at the start.
+  That request comes from Home Assistant's page, so it has no origin to check: only that state is taken, once, within
+  ten minutes. The browser is then sent on to the app, signed in or not. Away from the app nothing sends heartbeats, so
+  the watchdog waits those ten minutes longer; a login that never comes back ends with Chromium restarted into the app.
+  The kiosk has no keyboard outside the app, so a login page that needs typing needs a USB keyboard for that once.
 - **The app follows the lights.** While signed in, the service follows the allowed lights over Home Assistant's
   WebSocket API (`subscribe_entities`) and connects again when the connection ends (after 5 s, then doubling up to a
   minute). `GET /lights/events` sends the status as a server-sent event, now and after every change, so the buttons
@@ -242,6 +248,8 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `POST /lights/config`                  | Reads the config's lights from `{"server", "secret"}`; answers the status ([Lights](#lights))     |
 | `GET /lights`, `GET /lights/events`    | The status; the status as server-sent events, now and after every change (the app's origin only)  |
 | `POST /lights/set`                     | `{"id", "on", "brightness"?: 1-100}` switches a light (403: not allowed; 409: not signed in; 502) |
+| `POST /lights/sign-in`                 | Starts a sign-in: `{"url"}`, Home Assistant's login page to go to (409: no lights)                |
+| `GET /lights/callback?code=&state=`    | Where that login comes back to; keeps the sign-in and sends the browser to the app                |
 | `POST /lights/sign-out`                | Forgets the sign-in to Home Assistant                                                             |
 | `GET /camera`                          | `{"available": true}`: whether the screen has a camera (the app's origin only)                    |
 | `GET /camera/stream`                   | The camera's picture as JPEG frames while the request is open (the app's origin only)             |

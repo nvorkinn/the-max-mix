@@ -13,6 +13,7 @@ const CONFIG: LightsConfig = {
     { id: 'switch.kettle', name: null }
   ]
 };
+const CLIENT = { clientId: 'http://127.0.0.1:7341/', redirectUri: 'http://127.0.0.1:7341/lights/callback' };
 const SESSION: Session = { url: HOME, clientId: 'https://client.example/', refreshToken: 'refresh-1' };
 const KITCHEN_ON = {
   a: {
@@ -65,6 +66,7 @@ function lights(options: { session?: Session | null; tokens?: TokenResult[]; cal
     };
   };
   let config: LightsConfig | null | 'failed' = CONFIG;
+  let now = 0;
   const refresh = vi.fn(() => Promise.resolve(nextOf(tokens, { error: 'failed' })));
   const exchange = vi.fn<(url: string, clientId: string, code: string) => Promise<TokenResult>>(() =>
     Promise.resolve({ accessToken: 'access-new', expiresInMs: 1_800_000, refreshToken: 'refresh-new' })
@@ -79,7 +81,8 @@ function lights(options: { session?: Session | null; tokens?: TokenResult[]; cal
     fetchConfig: () => Promise.resolve(config),
     exchange,
     refresh,
-    retryMs: 1000
+    retryMs: 1000,
+    now: () => now
   });
   const statuses: LightsStatus[] = [];
   subject.add(status => {
@@ -93,6 +96,9 @@ function lights(options: { session?: Session | null; tokens?: TokenResult[]; cal
     refresh,
     exchange,
     session: () => session,
+    setNow: (time: number) => {
+      now = time;
+    },
     setConfig: (next: LightsConfig | null | 'failed') => {
       config = next;
     }
@@ -122,10 +128,17 @@ describe('parseLightsConfig', () => {
     ]);
   });
 
-  it('is nothing without an https address or a list', () => {
+  it('takes a Home Assistant reached over plain http, as many are at home', () => {
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- plain http is what it takes
+    const section = { home_assistant_url: 'http://homeassistant.local:8123', entities: [] };
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- plain http is what it takes
+    expect(parseLightsConfig(section)).toEqual({ url: 'http://homeassistant.local:8123', lights: [] });
+  });
+
+  it('is nothing without a web address or a list', () => {
     expect(parseLightsConfig(null)).toBeNull();
     expect(parseLightsConfig({ entities: [] })).toBeNull();
-    expect(parseLightsConfig({ home_assistant_url: 'http://home.example', entities: [] })).toBeNull();
+    expect(parseLightsConfig({ home_assistant_url: 'ftp://home.example', entities: [] })).toBeNull();
     expect(parseLightsConfig({ home_assistant_url: HOME })).toBeNull();
   });
 });
@@ -298,22 +311,53 @@ describe('Lights', () => {
     expect(refused.called).toHaveLength(2);
   });
 
-  it('signs in with a code, keeps the sign-in and follows the lights with the first token', async () => {
+  it('signs in: the login page to go to, then the code it comes back with, and follows the lights at once', async () => {
     const { subject, followings, exchange, session, refresh } = lights({ session: null });
-    expect(await subject.signIn('code-1', 'https://client.example/')).toBe(false);
+    expect(subject.startSignIn(CLIENT)).toBeNull();
     await subject.configure(REQUEST);
-    expect(await subject.signIn('code-1', 'https://client.example/')).toBe(true);
-    expect(exchange).toHaveBeenCalledWith(HOME, 'https://client.example/', 'code-1');
-    expect(session()).toEqual({ url: HOME, clientId: 'https://client.example/', refreshToken: 'refresh-new' });
+    const login = new URL(subject.startSignIn(CLIENT) ?? '');
+    expect(login.origin + login.pathname).toBe('https://home.example/auth/authorize');
+    const state = login.searchParams.get('state') ?? '';
+    expect(Object.fromEntries(login.searchParams)).toEqual({
+      response_type: 'code',
+      client_id: 'http://127.0.0.1:7341/',
+      redirect_uri: 'http://127.0.0.1:7341/lights/callback',
+      state
+    });
+    expect(state.length).toBeGreaterThanOrEqual(32);
+    expect(await subject.finishSignIn(state, 'code-1')).toBe(true);
+    expect(exchange).toHaveBeenCalledWith(HOME, 'http://127.0.0.1:7341/', 'code-1');
+    expect(session()).toEqual({ url: HOME, clientId: 'http://127.0.0.1:7341/', refreshToken: 'refresh-new' });
     expect(followings[0]?.token).toBe('access-new');
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('takes only the state it made, once and in time', async () => {
+    const { subject, exchange, setNow } = lights({ session: null });
+    await subject.configure(REQUEST);
+    expect(await subject.finishSignIn('made-up', 'code-1')).toBe(false);
+    const stateOf = () => new URL(subject.startSignIn(CLIENT) ?? '').searchParams.get('state') ?? '';
+    const first = stateOf();
+    expect(await subject.finishSignIn('made-up', 'code-1')).toBe(false);
+    // A wrong answer used the sign-in up.
+    expect(await subject.finishSignIn(first, 'code-1')).toBe(false);
+    const late = stateOf();
+    setNow(10 * 60_000 + 1);
+    expect(await subject.finishSignIn(late, 'code-1')).toBe(false);
+    const earlier = stateOf();
+    const newer = stateOf();
+    expect(earlier).not.toBe(newer);
+    expect(await subject.finishSignIn(newer, 'code-1')).toBe(true);
+    expect(await subject.finishSignIn(newer, 'code-1')).toBe(false);
+    expect(exchange).toHaveBeenCalledTimes(1);
   });
 
   it('stays signed out when Home Assistant does not take the code', async () => {
     const { subject, exchange, session } = lights({ session: null });
     await subject.configure(REQUEST);
     exchange.mockResolvedValueOnce({ error: 'refused' });
-    expect(await subject.signIn('code-1', 'https://client.example/')).toBe(false);
+    const state = new URL(subject.startSignIn(CLIENT) ?? '').searchParams.get('state') ?? '';
+    expect(await subject.finishSignIn(state, 'code-1')).toBe(false);
     expect(session()).toBeNull();
     expect(subject.status().state).toBe('signed-out');
   });

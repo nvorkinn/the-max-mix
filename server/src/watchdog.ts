@@ -50,6 +50,14 @@ export class Watchdog {
     this.#restarts = 0;
   }
 
+  /**
+   * The app is about to leave the screen to another page for up to `ms` (a login that comes back to it), which sends no
+   * heartbeats: its silence only counts from then. A page that never comes back is still restarted, later.
+   */
+  away(ms: number): void {
+    this.#lastBeat = this.#deps.now() + ms;
+  }
+
   /** How long the current Chromium may go without a heartbeat. */
   get limit(): number {
     return Math.min(STALE_MS * 2 ** this.#restarts, MAX_STALE_MS);

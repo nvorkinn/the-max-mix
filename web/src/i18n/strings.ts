@@ -40,6 +40,7 @@ export const STRINGS = {
     en: 'This screen is not signed in to Home Assistant yet.',
     nb: 'Denne skjermen er ikke logget inn på Home Assistant ennå.'
   },
+  'lights.sign_in': { en: 'Sign in to Home Assistant', nb: 'Logg inn på Home Assistant' },
   'lights.connecting': { en: 'Connecting to Home Assistant…', nb: 'Kobler til Home Assistant …' },
   'lights.unreachable': {
     en: 'Home Assistant can’t be reached. Trying again.',

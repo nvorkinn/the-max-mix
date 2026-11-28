@@ -83,6 +83,22 @@ describe('useLights', () => {
     expect(result.current.status?.lights[0]).toMatchObject({ on: true, brightness: 40 });
   });
 
+  it('goes to the login page the service gives, and stays when it gives none', async () => {
+    const assign = vi.spyOn(kiosk, 'leaveFor').mockImplementation(() => {});
+    const start = vi.spyOn(kiosk, 'startLightsSignIn').mockResolvedValue(null);
+    const { result } = renderHook(() => useLights(true, null));
+    result.current.signIn();
+    await waitFor(() => {
+      expect(start).toHaveBeenCalledTimes(1);
+    });
+    expect(assign).not.toHaveBeenCalled();
+    start.mockResolvedValue('https://home.example/auth/authorize?state=s1');
+    result.current.signIn();
+    await waitFor(() => {
+      expect(assign).toHaveBeenCalledWith('https://home.example/auth/authorize?state=s1');
+    });
+  });
+
   it('sends a dragged brightness once it rests, and turns the light off at nothing', async () => {
     const { result } = renderHook(() => useLights(true, null));
     await waitFor(() => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { configureLights, setLight, watchLights } from '../lights/kiosk';
+import { configureLights, leaveFor, setLight, startLightsSignIn, watchLights } from '../lights/kiosk';
 import type { Light, LightsStatus } from '../lights/kiosk';
 
 /** A dragged brightness is sent this long after the finger last moved, so a drag is a few requests and not hundreds. */
@@ -21,6 +21,14 @@ export interface Lights {
   status: LightsStatus | null;
   /** Turns a light on or off, or on at a brightness in percent (0 turns it off). */
   change: (light: Light, change: { on: boolean } | { brightness: number }) => void;
+  /** Leaves the app for Home Assistant's login page, which comes back to the app once the login is done. */
+  signIn: () => void;
+}
+
+function signIn(): void {
+  void startLightsSignIn().then(url => {
+    if (url !== null) leaveFor(url);
+  });
 }
 
 /**
@@ -84,5 +92,5 @@ export function useLights(enabled: boolean, config: unknown): Lights {
     ...status,
     lights: status.lights.map(light => ({ ...light, ...asked[light.id] }))
   };
-  return { status: enabled ? shown : null, change };
+  return { status: enabled ? shown : null, change, signIn };
 }

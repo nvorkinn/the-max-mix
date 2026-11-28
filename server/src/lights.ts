@@ -4,10 +4,12 @@
 // lights never comes from the page; anything not on it is refused here, since Home Assistant lets an ordinary user
 // switch every entity. This follows the allowed lights while it is signed in, and tells the app of each change (GET
 // /lights/events), so its buttons stay right when a light is switched some other way.
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   AccessTokens,
   applyEntityEvent,
   exchangeCode,
+  homeAssistantOrigin,
   httpsOrigin,
   lightState,
   refreshAccess
@@ -21,6 +23,8 @@ const MAX_NAME = 64;
 /** How long to wait before connecting to Home Assistant again, at first; doubled each time, up to MAX_RETRY_MS. */
 const RETRY_MS = 5000;
 const MAX_RETRY_MS = 60_000;
+/** How long a sign-in that was started may take; the code of one that comes back later is not taken. */
+export const SIGN_IN_MS = 10 * 60_000;
 /** A Home Assistant entity ID of a kind that turns on and off. */
 const ENTITY_ID = /^(light|switch|group)\.[\d_a-z]+$/;
 
@@ -41,7 +45,7 @@ export interface LightsConfig {
 export function parseLightsConfig(section: unknown): LightsConfig | null {
   if (typeof section !== 'object' || section === null) return null;
   const { home_assistant_url: address, entities } = section as Record<string, unknown>;
-  const url = httpsOrigin(address);
+  const url = homeAssistantOrigin(address);
   if (url === null || !Array.isArray(entities)) return null;
   const lights: AllowedLight[] = [];
   for (const entity of entities.slice(0, MAX_LIGHTS) as unknown[]) {
@@ -139,6 +143,19 @@ export interface LightsOptions {
   exchange?: (url: string, clientId: string, code: string) => Promise<TokenResult>;
   refresh?: (session: Session) => Promise<TokenResult>;
   retryMs?: number;
+  now?: () => number;
+}
+
+/** Who signs in, as Home Assistant's login knows an app: its address, and where on it the login comes back to. */
+export interface SignInClient {
+  clientId: string;
+  redirectUri: string;
+}
+
+/** Whether two secrets are the same, compared in the same time whatever they hold. */
+function isSameSecret(one: string, other: string): boolean {
+  const [a, b] = [Buffer.from(one), Buffer.from(other)];
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 const UNKNOWN: Entity = { s: 'unavailable', a: {} };
@@ -154,6 +171,8 @@ export class Lights {
   #stopFollowing: (() => void) | null = null;
   #retry: ReturnType<typeof setTimeout> | undefined;
   #retryMs: number;
+  /** The sign-in that was started and has not come back yet. */
+  #signIn: { state: string; clientId: string; expiresAt: number } | null = null;
   /** Counts the starts, so what an earlier one was waiting for is dropped when it arrives. */
   #run = 0;
 
@@ -163,6 +182,7 @@ export class Lights {
       exchange: exchangeCode,
       refresh: refreshAccess,
       retryMs: RETRY_MS,
+      now: Date.now,
       ...options
     };
     this.#retryMs = this.#options.retryMs;
@@ -335,12 +355,37 @@ export class Lights {
   }
 
   /**
-   * Finishes a sign-in to the config's Home Assistant with the one-time code its login gave to `clientId`, and keeps
-   * the sign-in. Answers whether Home Assistant took the code.
+   * Starts a sign-in to the config's Home Assistant: answers the address of its login page for the kiosk's browser to
+   * open, which comes back to `redirectUri` with a one-time code and the `state` made here; null without a config.
+   * Starting again makes the one before worthless.
    */
-  async signIn(code: string, clientId: string): Promise<boolean> {
+  startSignIn({ clientId, redirectUri }: SignInClient): string | null {
     const config = this.#config;
-    if (!config) return false;
+    if (!config) return null;
+    const state = randomBytes(24).toString('base64url');
+    this.#signIn = { state, clientId, expiresAt: this.#options.now() + SIGN_IN_MS };
+    const login = new URL('/auth/authorize', config.url);
+    login.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state
+    }).toString();
+    return login.href;
+  }
+
+  /**
+   * Finishes the sign-in that was started, with the `state` and one-time code the login came back with, and keeps the
+   * sign-in. The state is what shows the login was this kiosk's own: only the one made at the start is taken, once and
+   * in time. Answers whether the kiosk is now signed in.
+   */
+  async finishSignIn(state: string, code: string): Promise<boolean> {
+    const started = this.#signIn;
+    this.#signIn = null;
+    const config = this.#config;
+    const isOwn = started !== null && this.#options.now() <= started.expiresAt && isSameSecret(started.state, state);
+    if (!config || !started || !isOwn) return false;
+    const { clientId } = started;
     const result = await this.#options.exchange(config.url, clientId, code);
     if ('error' in result || result.refreshToken === null) return false;
     const session: Session = { url: config.url, clientId, refreshToken: result.refreshToken };
