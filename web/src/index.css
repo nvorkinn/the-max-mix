@@ -2442,12 +2442,17 @@ body:has(.app-dialog[open]) {
   background: var(--accent-ink);
   transform: translateX(36px);
 }
-/* The Screen page: the brightness column on the left, from top to bottom, beside quiet hours over the sleep delay. */
+/*
+  The Screen page: the brightness column on the left, the page's full height whatever is beside it, beside quiet hours
+  over the sleep delay. Quiet hours switched on can run past the bottom; the page then scrolls, and the column stays as
+  tall as the page.
+*/
 .screen-settings {
   display: flex;
   align-items: stretch;
   gap: 40px;
   max-width: 760px;
+  height: 100%;
 }
 .screen-settings > .settings-stack {
   flex: 1;
