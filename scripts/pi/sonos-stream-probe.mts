@@ -129,8 +129,9 @@ const setVolume = (host: string) =>
     `<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>${VOLUME}</DesiredVolume>`
   );
 
+// pw-link can wait for a link to start, which never happens while both nodes sleep, so every call has a time limit.
 const run = (argv: string[]) => {
-  const result = spawnSync(argv[0] ?? '', argv.slice(1), { encoding: 'utf8' });
+  const result = spawnSync(argv[0] ?? '', argv.slice(1), { encoding: 'utf8', timeout: 3000 });
   return { code: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() };
 };
 
@@ -191,16 +192,16 @@ function serve(port: number): void {
   console.log(`sink: ${made.out || 'created'}`);
   const linkSoloist = () => {
     const ports = soloistPorts();
+    const existing = run(['pw-link', '--links']).out;
     for (const out of ports) {
       const side = out.endsWith('FL') ? 'FL' : 'FR';
-      const linked = run(['pw-link', out, `${SINK}:playback_${side}`]);
-      if (linked.code === 0) console.log(`linked ${out} -> ${SINK}:playback_${side}`);
+      const input = `${SINK}:playback_${side}`;
+      if (new RegExp(`${out}\\s*\\n\\s*\\|->\\s*${input}`).test(existing)) continue;
+      const linked = run(['pw-link', out, input]);
+      console.log(`link ${out} -> ${input}: ${linked.code === 0 ? 'made' : linked.out || 'timed out (made once it plays)'}`);
     }
     return ports.length;
   };
-  if (linkSoloist() === 0) console.log('Soloist has no output yet; it is linked once it plays (checked every 2 s)');
-  const relink = setInterval(linkSoloist, 2000);
-
   const server = createServer((request, response) => {
     const from = request.socket.remoteAddress;
     console.log(`${new Date().toISOString()} ${request.method} ${request.url} from ${from} ${request.headers['user-agent']}`);
@@ -248,6 +249,9 @@ function serve(port: number): void {
     });
   });
   server.listen(port, '0.0.0.0', () => console.log(`serving http://${piAddress()}:${port}/stream.wav`));
+  if (linkSoloist() === 0) console.log('Soloist has no output yet; it is linked once it plays (checked every 2 s)');
+  const relink = setInterval(linkSoloist, 2000);
+
 
   const cleanup = () => {
     clearInterval(relink);
