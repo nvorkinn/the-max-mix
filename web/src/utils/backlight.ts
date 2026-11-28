@@ -13,8 +13,8 @@ export const BRIGHTNESS_STEP = 5;
 
 /** How much of its set brightness a dimmed screen keeps. */
 const DIMMED_SHARE = 0.3;
-/** How bright a screen dimmed in quiet hours is, whatever its setting: the lowest the backlight goes, for a dark room. */
-export const QUIET_DIMMED_BRIGHTNESS = 1;
+/** How much of its set brightness a screen dimmed in quiet hours keeps: much less, for a dark room, but not off. */
+const QUIET_DIMMED_SHARE = 0.1;
 
 /** The brightness setting of a config's display, in percent; full for one from a server that predates the setting. */
 export function brightnessOf(display: TouchscreenConfig['display']): number {
@@ -27,6 +27,11 @@ export function brightnessOf(display: TouchscreenConfig['display']): number {
 /** The backlight of a dimmed screen whose setting is `percent`: a share of it, never off. */
 export function dimmedBrightness(percent: number): number {
   return Math.max(1, Math.round(percent * DIMMED_SHARE));
+}
+
+/** The backlight of a screen dimmed in quiet hours whose setting is `percent`: a smaller share of it, never off. */
+export function quietDimmedBrightness(percent: number): number {
+  return Math.max(1, Math.round(percent * QUIET_DIMMED_SHARE));
 }
 
 /** Asks the kiosk to set its screen's backlight (server/src/backlight.ts), fading down to it with `fade`. */
