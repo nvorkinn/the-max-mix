@@ -494,7 +494,7 @@ describe('TabletView', () => {
     localStorage.removeItem('maxmix.themeColour');
   });
 
-  it('turns Dynamic on over the picked colour, and off again', async () => {
+  it('has Dynamic on over the picked colour, and turns it off and on again', async () => {
     setPlayer({ isAuthenticated: false, isReady: false, playbackState: null });
     const { container } = renderOnSpotifyTab(<TabletView />);
     await flush();
@@ -505,15 +505,17 @@ describe('TabletView', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Navy' }));
     const dynamic = screen.getByRole('switch', { name: 'Dynamic' });
-    fireEvent.click(dynamic);
     expect(room).toHaveAttribute('data-dynamic');
     expect(room).toHaveAttribute('data-colour', 'navy');
     // Nothing plays, so Dynamic shows the picked colour.
     expect(room).toHaveStyle({ '--dynamic-accent': '#5b8def' });
-    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
 
     fireEvent.click(dynamic);
     expect(room).not.toHaveAttribute('data-dynamic');
+    expect(localStorage.getItem('maxmix.dynamicColour')).toBe('off');
+
+    fireEvent.click(dynamic);
+    expect(room).toHaveAttribute('data-dynamic');
     expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
     localStorage.removeItem('maxmix.themeColour');
   });
@@ -566,7 +568,7 @@ describe('TabletView', () => {
       await act(() => vi.advanceTimersByTimeAsync(500));
       expect(save.mock.calls[0]).toEqual(['style', { skin: 'day', colour: 'teal', dynamic: true }]);
       expect(room).toHaveAttribute('data-dynamic');
-      expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+      expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
       vi.restoreAllMocks();
       localStorage.clear();
     });
@@ -588,7 +590,7 @@ describe('TabletView', () => {
         const { room, save } = await renderOwned();
         expect(room).toHaveAttribute('data-colour', 'forest');
         expect(room).toHaveAttribute('data-dynamic');
-        expect(localStorage.getItem('maxmix.dynamicColour')).toBe('on');
+        expect(localStorage.getItem('maxmix.dynamicColour')).toBeNull();
 
         vi.useFakeTimers();
         openAppearance();

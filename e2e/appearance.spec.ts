@@ -95,6 +95,10 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
   });
 
   test('The chosen colour recolours the app on the navy, with no theme to choose', async ({ page }) => {
+    // The chosen colour itself, not Dynamic's take on it.
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.dynamicColour', 'off');
+    });
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     let settings = page.getByRole('tabpanel', { name: 'Settings' });
@@ -117,7 +121,7 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await expect(settings.getByRole('button', { name: 'Navy' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('Dynamic turns on over the chosen colour, and stays on after a reload', async ({ page }) => {
+  test('Dynamic is on over the chosen colour, and stays off after a reload once turned off', async ({ page }) => {
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     const settings = page.getByRole('tabpanel', { name: 'Settings' });
@@ -125,16 +129,16 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
     await showSection(settings, 'Appearance');
     await settings.getByRole('button', { name: 'Teal' }).click();
     const dynamic = settings.getByRole('switch', { name: 'Dynamic' });
-    await expect(dynamic).toHaveAttribute('aria-checked', 'false');
-    await expect(room).not.toHaveAttribute('data-dynamic');
-
-    await dynamic.click();
+    await expect(dynamic).toHaveAttribute('aria-checked', 'true');
     await expect(room).toHaveAttribute('data-dynamic', '');
     await expect(room).toHaveAttribute('data-colour', 'teal');
     await expect(settings.getByRole('button', { name: 'Teal' })).toHaveAttribute('aria-pressed', 'true');
 
+    await dynamic.click();
+    await expect(room).not.toHaveAttribute('data-dynamic');
+
     await page.reload();
-    await expect(room).toHaveAttribute('data-dynamic', '');
+    await expect(room).not.toHaveAttribute('data-dynamic');
     await expect(room).toHaveAttribute('data-colour', 'teal');
   });
 });

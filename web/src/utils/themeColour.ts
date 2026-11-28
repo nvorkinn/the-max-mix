@@ -70,24 +70,20 @@ export function saveThemeColour(colour: ThemeColour): void {
   }
 }
 
-/** Whether Dynamic is on: stored as its own setting, or the old Dynamic colour choice, which this moves over. */
+/** Whether Dynamic is on, which it is unless it was turned off. The old Dynamic colour choice goes back to the default. */
 export function loadDynamicColour(): boolean {
   try {
-    if (isOldDynamic(localStorage.getItem(THEME_COLOUR_KEY))) {
-      localStorage.removeItem(THEME_COLOUR_KEY);
-      localStorage.setItem(DYNAMIC_COLOUR_KEY, 'on');
-      return true;
-    }
-    return localStorage.getItem(DYNAMIC_COLOUR_KEY) === 'on';
+    if (isOldDynamic(localStorage.getItem(THEME_COLOUR_KEY))) localStorage.removeItem(THEME_COLOUR_KEY);
+    return localStorage.getItem(DYNAMIC_COLOUR_KEY) !== 'off';
   } catch {
-    return false;
+    return true;
   }
 }
 
 export function saveDynamicColour(on: boolean): void {
   try {
-    if (on) localStorage.setItem(DYNAMIC_COLOUR_KEY, 'on');
-    else localStorage.removeItem(DYNAMIC_COLOUR_KEY);
+    if (on) localStorage.removeItem(DYNAMIC_COLOUR_KEY);
+    else localStorage.setItem(DYNAMIC_COLOUR_KEY, 'off');
   } catch {
     // Storage is unavailable; the setting then lasts only until the page reloads.
   }
