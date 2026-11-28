@@ -5,8 +5,8 @@ import * as account from '../countdown/account';
 import * as config from '../countdown/config';
 import { PARCEL_LINK_POLL_MS, useParcelLink } from './useParcelLink';
 
-const LINKED: DeviceAccount = { parcel: { linked: true }, spotify: { linked: false } };
-const UNLINKED: DeviceAccount = { parcel: { linked: false }, spotify: { linked: false } };
+const LINKED: DeviceAccount = { parcel: { linked: true }, spotify: { linked: false }, nrk: { linked: false } };
+const UNLINKED: DeviceAccount = { parcel: { linked: false }, spotify: { linked: false }, nrk: { linked: false } };
 
 function registered() {
   vi.spyOn(config, 'serverClient').mockReturnValue({ baseUrl: 'https://countdown.build', secret: 'a-device-secret' });

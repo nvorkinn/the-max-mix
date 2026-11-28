@@ -752,7 +752,7 @@ describe('SettingsPanel', () => {
     vi.spyOn(deviceServer, 'serverClient').mockReturnValue({ baseUrl: 'https://countdown.build', secret: 'a-secret' });
     const fetchAccount = vi
       .spyOn(deviceAccount, 'fetchDeviceAccount')
-      .mockResolvedValue({ parcel: { linked: false }, spotify: { linked: true } });
+      .mockResolvedValue({ parcel: { linked: false }, spotify: { linked: true }, nrk: { linked: false } });
     const onShow = vi.fn();
     const props = {
       ...base,
@@ -771,7 +771,7 @@ describe('SettingsPanel', () => {
       expect(onShow).toHaveBeenCalledOnce();
 
       // The key is pasted on the phone: the settings come up, and the config is read again.
-      fetchAccount.mockResolvedValue({ parcel: { linked: true }, spotify: { linked: true } });
+      fetchAccount.mockResolvedValue({ parcel: { linked: true }, spotify: { linked: true }, nrk: { linked: false } });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(PARCEL_LINK_POLL_MS);
       });

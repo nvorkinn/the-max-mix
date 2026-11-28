@@ -36,7 +36,11 @@ async function fakePairing(page: Page) {
     accountAuthorizations.push(request.headers()['authorization'] ?? '');
     return route.fulfill(
       isPaired
-        ? { status: 200, headers: CORS, json: { parcel: { linked: false }, spotify: { linked: false } } }
+        ? {
+            status: 200,
+            headers: CORS,
+            json: { parcel: { linked: false }, spotify: { linked: false }, nrk: { linked: false } }
+          }
         : { status: 409, headers: CORS, json: { error: "the device isn't paired yet" } }
     );
   });
