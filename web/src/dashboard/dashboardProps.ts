@@ -8,7 +8,7 @@
 // stop's departures are held from before (their provider is down) or were read longer ago than DEPARTURES_STALE_MS, and
 // the hourly trend while the forecast is held or older than WEATHER_STALE_MS.
 
-import type { DeviceWeather } from 'countdown-api';
+import type { DeviceWeather, TouchscreenHolidays } from 'countdown-api';
 import { getBackgroundImageUrl } from '../../../vendor/countdown-api/src/countdown_api/client';
 import type { DashboardProps } from '../components/Dashboard';
 import { countdownApi } from '../countdown/server';
@@ -73,7 +73,7 @@ function toNoticeItems(
   now: Date,
   clockFormat: ClockFormat,
   language: Language,
-  holidayDaysAhead: number
+  holidayDaysAhead: TouchscreenHolidays['days_ahead']
 ): NoticeItem[] {
   return snapshot.notices
     ? boardNotices(snapshot.notices, now, clockFormat, language, holidayDaysAhead)

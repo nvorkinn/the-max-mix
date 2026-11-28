@@ -746,7 +746,7 @@ describe('SettingsPanel', () => {
       <SettingsPanel
         {...base}
         initialSection="notices"
-        deviceConfig={older as TouchscreenConfig}
+        deviceConfig={older}
         onDeviceConfigSave={onDeviceConfigSave}
       />
     );
