@@ -23,6 +23,21 @@ export const link = (id: number, outputPort: number, inputPort: number) => ({
   info: { 'output-port-id': outputPort, 'input-port-id': inputPort }
 });
 
+/**
+ * Chromium's output stream (the Podcasts tab playing an episode) at `id`, with its stereo ports at `id + 1` and `id + 2`.
+ * Chromium is a PulseAudio client, so pipewire-pulse makes the stream and puts the program's names on the node itself.
+ */
+export const chromiumStream = (id: number) => [
+  node(id, 'Chromium', 'Stream/Output/Audio', {
+    'media.name': 'Playback',
+    'application.name': 'Chromium',
+    'application.process.binary': 'chromium',
+    'client.api': 'pipewire-pulse'
+  }),
+  port(id + 1, id, 'output', 'FL'),
+  port(id + 2, id, 'output', 'FR')
+];
+
 export function dump(extra: unknown[] = [], links?: unknown[]): string {
   return JSON.stringify([
     {

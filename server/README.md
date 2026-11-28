@@ -5,8 +5,8 @@ the app on `127.0.0.1:7341`. It does everything the app cannot do from a browser
 sound, talks to Sonos, Bluetooth and Wi-Fi, fetches lyrics, watches that the app is alive and updates the Pi. Its code
 is in `src/`, and the file names below are in that folder. Its first two jobs:
 
-- **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk's music (Spotify Soloist's stream) to the ones picked in the
-  app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
+- **AirPlay.** It lists the AirPlay speakers PipeWire found, and sends the kiosk's music (Spotify Soloist's stream, and Chromium's while the
+  Podcasts tab plays an episode) to the ones picked in the app (Sonos and other AirPlay 2 speakers that also accept RAOP). It is what the app's **AirPlay** mode under Speakers
   drives.
 - **The kiosk buttons.** Update now (which streams the update's journal to the app), Restart kiosk, Reboot Pi, the Wi-Fi
   panel and waking the screen.
@@ -106,7 +106,7 @@ The app reaches everything else about Sonos here too:
 - `POST /sonos/control` (`play`, `pause`, `next`, `previous`, `seek` with `positionMs`), `POST /sonos/volume` (the whole
   group, 0 to 100), `POST /sonos/join` (`room` joins the group `to` is in) and `POST /sonos/leave`.
 - `POST /sonos/stream` (`room`): the room's group plays the tablet's own sound, so the tablet stays Spotify's player and
-  the rooms play along (`tablet-stream.ts`). The app routes Soloist's stream to the `kiosk_sonos` sink as well
+  the rooms play along (`tablet-stream.ts`). The app routes Soloist's stream (and Chromium's podcast) to the `kiosk_sonos` sink as well
   (`POST /audio/route` with that id), and the Pi serves what that sink plays as one endless FLAC stream (verbatim frames,
   `flac.ts`, about 1.4 Mbit/s) at `GET /tablet.flac` on `SONOS_STREAM_PORT` (6330) on the home network. Only the group's
   leading room fetches it; Sonos keeps the other rooms in time (about 1.5 s behind the tablet). While the tablet is
@@ -162,17 +162,18 @@ while it is connected or was heard in the last two minutes; for the first 8 s of
    `outputs` list gives each sink by PipeWire's node name (its `id`), its `kind` (`airplay` for `raop_sink.*`,
    `bluetooth` for `bluez_output.*`, the names PipeWire's own modules give them), a Bluetooth speaker's `address` (from
    the sink's `api.bluez5.address`, as in `GET /bluetooth/devices`), its volume, and `linked`: whether one of
-   Soloist's streams is linked to it in PipeWire right now, which is where the sound really goes. Chromium's own device list is not used: it hides
+   the players' streams (Soloist's, or Chromium's podcast) is linked to it in PipeWire right now, which is where the
+   sound really goes. Chromium's own device list is not used: it hides
    the names until a microphone is open, and the Pi has none.
 2. **Routing.** Picking speakers sends `POST /audio/route` with `{"outputs": ["raop_sink.Kitchen.local.7000", …]}` (ids
    from `outputs`), or `{"speakers": ["Kitchen", "Lounge"]}` (the sinks' descriptions) from older apps. An id keeps two
    speakers with the same name apart; but an AirPlay sink's node name holds the speaker's address and port, so the
    service saves each id with its name, and routes by the name only while no sink has the id. The service saves the
-   choice in `~/.local/state/the-max-mix/speakers.json` and links each of Soloist's
+   choice in `~/.local/state/the-max-mix/speakers.json` and links each of the players' (Soloist's and Chromium's)
    channels to the same channel of every chosen sink with `pw-link`, before removing its links to other sinks, so the
    music does not drop out. Links to anything that is not a sink (a level meter) are left alone.
 3. **Keeping it there.** The `kiosk-server` user unit (`node kiosk-server.ts watch`) reads the saved choice every 2
-   seconds and routes again when needed, so a stream Soloist opens again, or a speaker that drops off the network and
+   seconds and routes again when needed, so a stream Soloist or Chromium opens again, or a speaker that drops off the network and
    comes back, plays in the right place. If none of the chosen speakers is on the network, nothing changes.
 
 4. **Volume.** `GET /speakers` also gives each speaker's volume, and the drawer shows a slider under each chosen
@@ -370,7 +371,7 @@ State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` 
   (CORS), and refuses every POST and every WebSocket whose `Origin` header is not the app's (a browser does not apply CORS
   to a WebSocket), so no other web page can trigger an action.
 - A request names a fixed action; it never carries a command. Routing accepts at most 16 speaker names of up to 256
-  characters and can only link Soloist's stream to existing sinks. Everything runs by absolute path with an argument
+  characters and can only link Soloist's and Chromium's streams to existing sinks. Everything runs by absolute path with an argument
   list, no shell. `POST /sonos/play` takes a room name (one line, at most 64 characters, not starting with `-`) and a
   `spotify:<kind>:<22-character id>` URI, and hands them to the sonos-ts library, which runs no program. polkit (`50-kiosk-power.rules`) limits what the `kiosk` user may do with systemd and power.
 - Everything runs as the `kiosk` user, next to that user's PipeWire.
@@ -378,7 +379,7 @@ State lives in `/data/the-max-mix/update/state.json`; `sudo kiosk-update check` 
 ## On the device
 
 - `systemctl --user -M kiosk@ status kiosk-server` and `journalctl _SYSTEMD_USER_UNIT=kiosk-server.service` (as root).
-- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Soloist's stream goes; `wpctl get-volume <id>`
+- `wpctl status` lists the AirPlay sinks; `pw-link -l` shows where Soloist's and Chromium's streams go; `wpctl get-volume <id>`
   shows a speaker's volume as the app does.
 - `curl -s http://127.0.0.1:7341/speakers` lists what the app sees. A POST needs the app's `Origin`, for example
   `curl -X POST -H 'Origin: http://127.0.0.1:7341' http://127.0.0.1:7341/power/restart`.

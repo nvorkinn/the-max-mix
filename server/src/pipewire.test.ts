@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
-import { dump, link, silence } from './fixtures.ts';
+import { chromiumStream, dump, link, silence } from './fixtures.ts';
 import {
   isEmptyPlan,
   linkedSinks,
@@ -98,11 +98,18 @@ describe('parseDump', () => {
     expect(nodeAt(40).description).toBe('Built-in Audio');
   });
 
-  it("only counts Soloist's streams as players", () => {
-    // The browser plays nothing now, so its stream (a page's sound, say) stays where PipeWire put it.
-    const others = [otherStream(100, 'mpv'), otherStream(101, 'Chromium')];
+  it("counts Soloist's and Chromium's output streams as players, and nobody else's", () => {
+    // Chromium plays the Podcasts tab's episodes; another program's stream stays where PipeWire put it.
+    const chromiumInput = {
+      id: 102,
+      type: 'PipeWire:Interface:Node',
+      info: {
+        props: { 'node.name': 'Chromium input', 'media.class': 'Stream/Input/Audio', 'application.name': 'Chromium' }
+      }
+    };
+    const others = [otherStream(100, 'mpv'), ...chromiumStream(110), chromiumInput];
     const players = playersOf(parseDump(dump(others)));
-    expect(players.map(node => node.id)).toEqual([70]);
+    expect(players.map(node => node.id)).toEqual([70, 110]);
   });
 
   it("counts Soloist's stream as a player, by its client's program", () => {
@@ -232,8 +239,59 @@ describe('planRoutes', () => {
   });
 });
 
+describe('planRoutes with a podcast playing', () => {
+  it("sends Chromium's stream to the same chosen speakers as Soloist's", () => {
+    const graph = parseDump(dump(chromiumStream(110)));
+    expect(planRoutes(graph, byName(['Kitchen']))).toEqual({
+      connect: [
+        [71, 51],
+        [72, 52],
+        [111, 51],
+        [112, 52]
+      ],
+      disconnect: [80, 81]
+    });
+  });
+
+  it("moves Chromium's stream off the sink PipeWire put it on, to the Sonos rooms' sink with the speakers", () => {
+    const sonos = [
+      {
+        id: 170,
+        type: 'PipeWire:Interface:Node',
+        info: { props: { 'node.name': 'kiosk_sonos', 'media.class': 'Audio/Sink' } }
+      },
+      {
+        id: 171,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 170, 'audio.channel': 'FL' } }
+      },
+      {
+        id: 172,
+        type: 'PipeWire:Interface:Port',
+        info: { direction: 'input', props: { 'node.id': 170, 'audio.channel': 'FR' } }
+      }
+    ];
+    // Chromium's stream joined the default sink (40), as a new stream does, and Soloist's already plays to the Sonos sink.
+    const links = [link(83, 71, 171), link(84, 72, 172), link(85, 111, 41), link(86, 112, 42)];
+    const graph = parseDump(dump([...sonos, ...chromiumStream(110)], links));
+    expect(planRoutes(graph, [{ id: 'kiosk_sonos' }])).toEqual({
+      connect: [
+        [111, 171],
+        [112, 172]
+      ],
+      disconnect: [85, 86]
+    });
+  });
+});
+
 describe('linkedSinks', () => {
-  it('lists the sinks the browser plays to, not other listeners', () => {
+  it("counts where Chromium's stream plays too", () => {
+    const links = [link(83, 71, 51), link(84, 72, 52), link(85, 111, 61)];
+    const graph = parseDump(dump(chromiumStream(110), links));
+    expect(linkedSinks(graph)).toEqual(new Set([50, 60]));
+  });
+
+  it('lists the sinks the players play to, not other listeners', () => {
     expect(linkedSinks(GRAPH)).toEqual(new Set([40]));
     const links = [link(83, 71, 51), link(84, 72, 61), link(82, 71, 91)];
     const graph = parseDump(dump([], links));
