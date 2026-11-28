@@ -123,6 +123,30 @@ The app reaches everything else about Sonos here too:
   `SONOS_LISTENER_PORT` (6329). The subscriptions end when the last app goes away.
   The app keeps a slow read (once a minute) as a fallback, and reads as before when the stream is not there.
 
+## Lights
+
+The kiosk can switch the lights its owner allows, which are Home Assistant's. Which ones is in the kiosk's config on
+countdown-server, its `lights` section: Home Assistant's address (https only) and up to 32 entities (a `light`, a
+`switch` or a `group`), each with an optional name. A config without the section has no lights.
+
+- **The list is read here, not sent by the app.** The app says where the config is (`POST /lights/config`, with the
+  device secret, as `POST /soloist/person` does), and this service fetches it (`lights.ts`). Anything not on the list is
+  refused here, since Home Assistant lets an ordinary user switch every entity.
+- **The sign-in stays on the Pi.** The service is signed in as an ordinary Home Assistant user through Home Assistant's
+  login for apps: a one-time code is exchanged for a refresh token (`home-assistant.ts`), kept in
+  `~/.local/state/the-max-mix/home-assistant.json`, which only the `kiosk` user can read. It outlives updates and a
+  factory reset wipes it. Access tokens last 30 minutes and are made from it as needed; none of them reaches the app.
+  A sign-in Home Assistant no longer takes is forgotten, and the lights are then `signed-out`. How the code gets to
+  the Pi (the sign-in screen) is not built yet: `Lights.signIn` takes it.
+- **The app follows the lights.** While signed in, the service follows the allowed lights over Home Assistant's
+  WebSocket API (`subscribe_entities`) and connects again when the connection ends (after 5 s, then doubling up to a
+  minute). `GET /lights/events` sends the status as a server-sent event, now and after every change, so the buttons
+  stay right when a light is switched some other way.
+
+The status is `{"state", "lights"}`. `state` is `off` (no lights in the config), `signed-out`, `connecting`, `ready` or
+`unreachable`; each light is `{"id", "name", "on", "brightness", "dimmable", "available"}`, with `brightness` in
+percent, or null for a light that is off or does not dim.
+
 ## Bluetooth monitor
 
 `GET /bluetooth/monitor` feeds the Bluetooth section of the app's debug console (hold the clock 2 s): the Pi's adapter,
@@ -196,30 +220,34 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 
 ## The requests
 
-| Request                                | What it does                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------- |
-| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                     |
-| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                     |
-| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                   |
-| `WS /power/update`                     | Connecting starts the update and streams it (below)                                   |
-| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                           |
-| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                              |
-| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100, "fade"?: true}` (404: the screen has none)  |
-| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                |
-| `POST /log`                            | An app error, written to the journal                                                  |
-| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)           |
-| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                           |
-| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                     |
-| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                              |
-| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                 |
-| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                           |
-| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                             |
-| `GET /wifi/hotspot`                    | `{"state": "running" \| "connected" \| "joining" \| "joined" \| "failed" \| "idle"}`  |
-| `GET /camera`                          | `{"available": true}`: whether the screen has a camera (the app's origin only)        |
-| `GET /camera/stream`                   | The camera's picture as JPEG frames while the request is open (the app's origin only) |
-| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                       |
-| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                          |
-| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                              |
+| Request                                | What it does                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET /speakers`                        | `{"speakers": [...], "volumes": {"Kitchen": 40}}`                                                 |
+| `POST /audio/route`                    | Routes the sound to the speakers in the JSON body                                                 |
+| `POST /audio/volume`                   | Sets one speaker's volume (404: not on the network)                                               |
+| `WS /power/update`                     | Connecting starts the update and streams it (below)                                               |
+| `POST /power/restart`, `/power/reboot` | Restarts the kiosk; reboots                                                                       |
+| `POST /display/wake`                   | Turns the screen on (`kiosk-display on`)                                                          |
+| `POST /display/brightness`             | Sets the backlight to `{"percent": 1-100, "fade"?: true}` (404: the screen has none)              |
+| `POST /heartbeat`                      | The app is alive (the watchdog, below)                                                            |
+| `POST /log`                            | An app error, written to the journal                                                              |
+| `GET /lyrics?title=&artist=&duration=` | Lyrics: `{"source"}` with `"lrc"`, `"plain"` or `"instrumental"` (404, 502)                       |
+| `GET /bluetooth/devices`               | `{"devices": [{"address", "name", "paired", "connected"}]}`                                       |
+| `POST /bluetooth/scan`                 | Looks for speakers for 8 seconds; the same answer                                                 |
+| `POST /bluetooth/connect`              | Pairs, trusts and connects `{"address"}`                                                          |
+| `POST /bluetooth/remove`               | Forgets `{"address"}`                                                                             |
+| `POST /wifi/hotspot`                   | Starts the setup hotspot: name, password, address, QR codes                                       |
+| `POST /wifi/hotspot/stop`              | Ends it and puts the earlier network back                                                         |
+| `GET /wifi/hotspot`                    | `{"state": "running" \| "connected" \| "joining" \| "joined" \| "failed" \| "idle"}`              |
+| `POST /lights/config`                  | Reads the config's lights from `{"server", "secret"}`; answers the status ([Lights](#lights))     |
+| `GET /lights`, `GET /lights/events`    | The status; the status as server-sent events, now and after every change (the app's origin only)  |
+| `POST /lights/set`                     | `{"id", "on", "brightness"?: 1-100}` switches a light (403: not allowed; 409: not signed in; 502) |
+| `POST /lights/sign-out`                | Forgets the sign-in to Home Assistant                                                             |
+| `GET /camera`                          | `{"available": true}`: whether the screen has a camera (the app's origin only)                    |
+| `GET /camera/stream`                   | The camera's picture as JPEG frames while the request is open (the app's origin only)             |
+| `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                                   |
+| `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                                      |
+| `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                                          |
 
 ## Bluetooth speakers
 
