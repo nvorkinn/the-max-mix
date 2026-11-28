@@ -13,6 +13,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `queue.spec.ts`      | The queue (`@queue`)                                                                                          |
 | `music.spec.ts`      | Choosing music on the screen: playlists, Liked Songs, recent (`@music`)                                       |
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                                                            |
+| `podcasts.spec.ts`   | Podcasts (`@podcasts`): the Podcasts tab with NRK linked, its shows, episodes and player                      |
 | `speakers.spec.ts`   | Speakers (`@speakers`): the drawer and AirPlay on the kiosk                                                   |
 | `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons                                     |
 | `sleep.spec.ts`      | Screen sleep (`@sleep`): idle sleep, quiet hours, polling while asleep                                        |

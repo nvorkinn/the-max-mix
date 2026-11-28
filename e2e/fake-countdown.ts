@@ -1,4 +1,4 @@
-// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS Dagsnytt Abels tårn Efmt podkast
 import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
@@ -848,4 +848,123 @@ export function linesAt(now: Date, lines: readonly (readonly string[])[]) {
       };
     })
   };
+}
+
+const podcastsFixture = JSON.parse(
+  readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/podcasts.json', import.meta.url), 'utf8')
+) as { value: FakePodcasts };
+
+interface FakeEpisode {
+  id: string;
+  title: string;
+  published_at: string;
+  duration_s: number;
+  image_url: string | null;
+  progress: { position_s: number; finished: boolean } | null;
+}
+export interface FakePodcasts {
+  fetched_at: string | null;
+  shows: { id: string; title: string; image_url: string | null; pinned: boolean; episodes: FakeEpisode[] }[];
+}
+
+/** countdown-api's example shows (Dagsnytt 18, part-listened and played; Abels tårn, pinned), as getPodcasts answers. */
+export const podcastsExample = (): FakePodcasts => structuredClone(podcastsFixture.value);
+
+/** Where the fake episodes' audio is, for a test to answer with its own. */
+export const PODCAST_AUDIO = 'https://podkast.nrk.no/fil/**';
+
+/**
+ * A WAV file of `seconds` of silence, small enough to fake an episode with (8 kHz, 8-bit, mono): the audio element
+ * plays it as it would NRK's MP3.
+ */
+export function silentWav(seconds: number): Buffer {
+  const rate = 8000;
+  const samples = rate * seconds;
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + samples, 4);
+  header.write('WAVEfmt ', 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate, 28);
+  header.writeUInt16LE(1, 32);
+  header.writeUInt16LE(8, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(samples, 40);
+  return Buffer.concat([header, Buffer.alloc(samples, 128)]);
+}
+
+/**
+ * Stands in for countdown-server's NRK podcasts for an owned kiosk (start it with fakeCountdownServer's `hasAccount`):
+ * the owner's account (getAccount) with NRK `linked`, `podcasts` as getPodcasts answers them, and each episode's
+ * playback (getPodcastPlayback): its audio at podkast.nrk.no, which the test answers with `audio`, played from its
+ * progress in `podcasts`, and reported at `report`'s cadence. Returns the reports (putPodcastProgress) as they arrive.
+ */
+export async function fakePodcasts(
+  page: Page,
+  {
+    linked = true,
+    podcasts = podcastsExample(),
+    report = { first_after_s: 5, every_s: 30 },
+    audio = silentWav(5)
+  }: {
+    linked?: boolean;
+    podcasts?: FakePodcasts;
+    report?: { first_after_s: number; every_s: number };
+    audio?: Buffer;
+  } = {}
+) {
+  const reports: { podcast: string; episode: string; position_s: number }[] = [];
+  await page.route(`${API}/api/devices/account`, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    const account = { parcel: { linked: false }, spotify: { linked: true }, nrk: { linked } };
+    return route.fulfill({ status: 200, headers: cors, json: account });
+  });
+  await page.route(`${API}/api/devices/podcasts`, route => {
+    const cors = corsFor(route.request().headers()['origin']);
+    const isPreflight = route.request().method() === 'OPTIONS';
+    return route.fulfill(isPreflight ? { status: 204, headers: cors } : { status: 200, headers: cors, json: podcasts });
+  });
+  await page.route(`${API}/api/devices/podcasts/**`, route => {
+    const request = route.request();
+    const cors = corsFor(request.headers()['origin']);
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    // /api/devices/podcasts/{podcast_id}/episodes/{episode_id}, and /progress after it for a report.
+    const parts = new URL(request.url()).pathname.split('/', 8);
+    const podcast = decodeURIComponent(parts[4] ?? '');
+    const episode = decodeURIComponent(parts[6] ?? '');
+    const progress = parts[7];
+    if (progress === 'progress') {
+      const { position_s } = request.postDataJSON() as { position_s: number };
+      reports.push({ podcast, episode, position_s });
+      return route.fulfill({ status: 204, headers: cors });
+    }
+    const found = podcasts.shows.find(show => show.id === podcast)?.episodes.find(item => item.id === episode);
+    if (!found) return route.fulfill({ status: 404, headers: cors });
+    const playback = {
+      url: `https://podkast.nrk.no/fil/${podcast}/${episode}.mp3`,
+      format: 'mp3',
+      duration_s: found.duration_s,
+      progress: found.progress,
+      report
+    };
+    return route.fulfill({ status: 200, headers: cors, json: playback });
+  });
+  // Answered in ranges, as NRK's server does, so the player can seek.
+  await page.route(PODCAST_AUDIO, route => {
+    const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers()['range'] ?? '');
+    if (!range) return route.fulfill({ status: 200, contentType: 'audio/wav', body: audio });
+    const start = Number(range[1]);
+    const end = range[2] ? Math.min(Number(range[2]), audio.length - 1) : audio.length - 1;
+    return route.fulfill({
+      status: 206,
+      contentType: 'audio/wav',
+      headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${audio.length}` },
+      body: audio.subarray(start, end + 1)
+    });
+  });
+  return reports;
 }
