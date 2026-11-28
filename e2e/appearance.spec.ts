@@ -96,7 +96,9 @@ test.describe('Appearance of dialogs', { tag: ['@appearance', '@settings'] }, ()
 
   test('The chosen colour recolours the app on the navy, with no theme to choose', async ({ page }) => {
     // The chosen colour itself, not Dynamic's take on it.
-    await page.addInitScript(() => localStorage.setItem('maxmix.dynamicColour', 'off'));
+    await page.addInitScript(() => {
+      localStorage.setItem('maxmix.dynamicColour', 'off');
+    });
     await openSpotifyTab(page, '/?kiosk=1');
     const room = page.locator('.tablet-container');
     let settings = page.getByRole('tabpanel', { name: 'Settings' });
