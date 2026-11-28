@@ -96,6 +96,7 @@ export const STRINGS = {
   // The tab bar.
   'tabs.screens': { en: 'Screens', nb: 'Skjermer' },
   'tabs.spotify': { en: 'Spotify', nb: 'Spotify' },
+  'tabs.podcasts': { en: 'Podcasts', nb: 'Podkaster' },
   'tabs.dashboard': { en: 'Dashboard', nb: 'Oversikt' },
   'tabs.lights': { en: 'Lights', nb: 'Lys' },
   'tabs.settings': { en: 'Settings', nb: 'Innstillinger' },
@@ -400,6 +401,14 @@ export const STRINGS = {
   'panel.queue': { en: 'Queue', nb: 'Kø' },
   'panel.lyrics': { en: 'Lyrics', nb: 'Sangtekster' },
   'panel.speakers': { en: 'Speakers', nb: 'Høyttalere' },
+
+  // The Podcasts tab.
+  'podcasts.continue': { en: 'Continue listening', nb: 'Fortsett å lytte' },
+  'podcasts.shows': { en: 'Shows', nb: 'Serier' },
+  'podcasts.finished': { en: 'Played', nb: 'Hørt' },
+  'podcasts.forward_30': { en: 'Forward 30 seconds', nb: '30 sekunder frem' },
+  'podcasts.failed': { en: 'This episode can’t be played.', nb: 'Denne episoden kan ikke spilles av.' },
+  'podcasts.open_player': { en: 'Open {title} in the player', nb: 'Åpne {title} i spilleren' },
 
   // The player.
   'player.nothing_playing': { en: 'Nothing playing', nb: 'Ingenting spilles' },

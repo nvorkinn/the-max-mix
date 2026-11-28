@@ -1,9 +1,10 @@
 // The tablet's sound for Sonos rooms. While Sonos rooms play along with the tablet, Spotify still plays on the tablet
-// (Soloist), and the Pi routes Soloist's stream to TABLET_SINK as well, a sink of its own PipeWire config
-// (50-kiosk-raop.conf). This serves what that sink plays as one endless FLAC stream (flac.ts) on the home network, at
-// STREAM_PATH on SONOS_STREAM_PORT, for the room that leads the Sonos group; Sonos keeps the group's other rooms in time
-// with it. One pw-record reads the sink while any speaker listens. When nothing plays (the tablet paused), silence is
-// sent in real time, so the speaker keeps the stream open and plays again as soon as the tablet does.
+// (Soloist), as a podcast does (Chromium), and the Pi routes their streams to TABLET_SINK as well, a sink of its own
+// PipeWire config (50-kiosk-raop.conf). This serves what that sink plays as one endless FLAC stream (flac.ts) on the
+// home network, at STREAM_PATH on SONOS_STREAM_PORT, for the room that leads the Sonos group; Sonos keeps the group's
+// other rooms in time with it. One pw-record reads the sink while any speaker listens. When nothing plays (the tablet
+// paused), silence is sent in real time, so the speaker keeps the stream open and plays again as soon as the tablet
+// does.
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';

@@ -67,6 +67,11 @@ export const AREAS: Area[] = [
     ]
   },
   {
+    tag: 'podcasts',
+    title: 'Podcasts',
+    sources: [/^web\/src\/components\/PodcastsView/, /^web\/src\/podcasts\//, /^web\/src\/hooks\/usePodcast/]
+  },
+  {
     tag: 'settings',
     title: 'Settings',
     sources: [

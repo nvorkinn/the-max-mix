@@ -53,6 +53,8 @@ import {
 } from '../utils/themeColour';
 import { useLights } from '../hooks/useLights';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
+import { usePodcastPlayer } from '../hooks/usePodcastPlayer';
+import { usePodcasts, usePodcastsTab } from '../hooks/usePodcasts';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { DEFAULT_LANGUAGE, LanguageContext, LOCALES } from '../i18n/language';
 import type { Language } from '../i18n/language';
@@ -69,6 +71,7 @@ import TrackQueue, { type QueueStatus } from './TrackQueue';
 import { describePlayback, PlayerProblem, type PlaybackNoticeState, type PlayerNotice } from './PlaybackNotice';
 import LightsView from './LightsView';
 import LyricsPanel from './LyricsPanel';
+import PodcastsView from './PodcastsView';
 import PanelNav from './PanelNav';
 import SettingsPanel from './SettingsPanel';
 import type { SettingsSection } from './SettingsPanel';
@@ -235,6 +238,18 @@ export default function TabletView() {
   }, [playingDevice]);
   const isPlaying = Boolean(shownPlayback?.is_playing);
   const currentTrack = shownPlayback?.item;
+  // The Podcasts tab's episodes play in the page, through the same speakers as Spotify (the Pi routes Chromium's sound
+  // as it routes Soloist's), so only one plays at a time: an episode starting pauses the music this tablet plays (itself
+  // or its Sonos), as a person switch does, and the music starting pauses the episode.
+  const pauseMusicRef = useRef<() => void>(() => {});
+  const podcastPlayer = usePodcastPlayer(() => pauseMusicRef.current());
+  const pausePodcast = podcastPlayer.pause;
+  const musicWasPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    if (isPlaying && !musicWasPlayingRef.current) pausePodcast();
+    musicWasPlayingRef.current = isPlaying;
+  }, [isPlaying, pausePodcast]);
+  const listening = isPlaying || podcastPlayer.isPlaying;
 
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
@@ -256,7 +271,7 @@ export default function TabletView() {
   const [isPhoneSetup, setIsPhoneSetup] = useState(false);
   useIdle({
     enabled: onKiosk,
-    busy: isPlaying || needsWifi || isPhoneSetup,
+    busy: listening || needsWifi || isPhoneSetup,
     idleMs: IDLE_DASHBOARD_MS,
     onIdle: () => goToScreen('dashboard')
   });
@@ -348,6 +363,11 @@ export default function TabletView() {
   };
   // The brightness setting, on a kiosk whose panel has a backlight the Pi can set (utils/backlight).
   const hasBacklight = onKiosk && ownedConfig?.brightness_control === true;
+  // The Podcasts tab, while the owner has NRK linked and hasn't switched it off; its shows are read while it is open.
+  const hasPodcasts = usePodcastsTab(ownedConfig);
+  // A kiosk whose Podcasts tab was taken away while it was open goes back to the Dashboard.
+  if (screen === 'podcasts' && !hasPodcasts) setScreen('dashboard');
+  const podcasts = usePodcasts(screen === 'podcasts');
   // The lights the owner let this kiosk switch (Home Assistant's, through the Pi's service); most kiosks have none.
   const lights = useLights(onKiosk, ownedConfig);
   const hasLights = lights.status !== null && lights.status.state !== 'off';
@@ -361,7 +381,7 @@ export default function TabletView() {
   const quiet = isQuietTime(quietHours, new Date(minute * 60_000));
   const sleep = useScreenSleep({
     enabled: onKiosk,
-    keepAwake: isPlaying || isPhoneSetup,
+    keepAwake: listening || isPhoneSetup,
     onDashboard: screen === 'dashboard',
     sleepMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000,
     quiet,
@@ -519,6 +539,14 @@ export default function TabletView() {
     switchPerson(spotifyId);
     reloadSettings();
   };
+  // An episode starting pauses the music this tablet plays; music on another Spotify device plays on.
+  const pauseMusic = () => {
+    if (!isPlaying || !(followingSonos || isPlayerActive)) return;
+    void (followingSonos ? sonos.togglePlay() : togglePlay()).catch(() => false);
+  };
+  useEffect(() => {
+    pauseMusicRef.current = pauseMusic;
+  });
   // Left alone a while, the kiosk switches to whoever's phone it hears when the active person's has gone. A switch made
   // while the screen sleeps starts the new page asleep too, so nobody's screen lights up at night.
   useAutoSwitch({
@@ -674,6 +702,7 @@ export default function TabletView() {
     onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null,
     // Holding the clock opens the debug console, on every tab.
     onClockHold: () => setIsDebugOpen(true),
+    hasPodcasts,
     hasLights
   };
 
@@ -812,6 +841,21 @@ export default function TabletView() {
             </main>
           </div>
         </div>
+        {hasPodcasts && (
+          <section
+            className="app-tab-panel on-photo"
+            role="tabpanel"
+            id={tabPanelId('podcasts')}
+            aria-label={translate('tabs.podcasts', language)}
+            hidden={screen !== 'podcasts'}
+          >
+            {screen === 'podcasts' && <TabBackdrop now={tabBar.now} />}
+            <div className="floating-bar">
+              <TabBar {...tabBar} onSearch={null} />
+            </div>
+            {screen === 'podcasts' && <PodcastsView podcasts={podcasts} player={podcastPlayer} />}
+          </section>
+        )}
         <section
           className="app-tab-panel"
           role="tabpanel"

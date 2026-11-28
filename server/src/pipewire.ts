@@ -9,9 +9,11 @@ export const PW_DUMP = '/usr/bin/pw-dump';
 export const PW_LINK = '/usr/bin/pw-link';
 // WirePlumber's control tool; it sets a node's volume on the same cubic scale it reports (and as volume sliders do).
 export const WPCTL = '/usr/bin/wpctl';
-// The kiosk's music is Spotify Soloist's: it plays through its own stream (node.name "spotify"), and only its client
-// names the soloist binary. The browser plays nothing since the app stopped using the Web Playback SDK.
-const PLAYER_NAMES = ['soloist'];
+// The kiosk's players: Spotify Soloist, which plays through its own stream (node.name "spotify") and only its client
+// names the soloist binary; and the browser, Chromium, which plays the Podcasts tab's episodes. Chromium is a
+// PulseAudio client of pipewire-pulse, and names itself on its stream (application.name "Chromium",
+// application.process.binary "chromium"). Both go to the same chosen speakers.
+const PLAYER_NAMES = ['soloist', 'chromium'];
 /**
  * The silent sink the kiosk's PipeWire config makes (50-kiosk-raop.conf): where the music goes while no speaker is
  * chosen. The kiosk has no speaker of its own, so the default sink would otherwise be whichever AirPlay speaker
@@ -95,7 +97,7 @@ export interface Graph {
 
 const isSink = (node: Node): boolean => node.mediaClass === 'Audio/Sink';
 
-/** An output stream of Spotify Soloist. */
+/** An output stream of Spotify Soloist or of Chromium. */
 function isPlayer(node: Node): boolean {
   if (node.mediaClass !== 'Stream/Output/Audio') return false;
   const names = [node.props['application.process.binary'], node.props['application.name']];
@@ -267,7 +269,7 @@ function targetsOf(graph: Graph, choices: readonly Choice[]): Node[] {
   return fallback && isSink(fallback) ? [fallback] : [];
 }
 
-/** The ids of the sinks one of Soloist's streams is linked to now: where its sound really goes. */
+/** The ids of the sinks one of the players' streams is linked to now: where their sound really goes. */
 export function linkedSinks(graph: Graph): Set<number> {
   const outputs = new Set(playersOf(graph).flatMap(player => portsOf(graph, player.id, 'out').map(port => port.id)));
   const portNode = new Map(graph.ports.map(port => [port.id, port.node]));
@@ -282,7 +284,7 @@ export function linkedSinks(graph: Graph): Set<number> {
 
 const pairKey = ([output, input]: Pair) => `${output}:${input}`;
 
-/** Adds to `plan` what one browser stream needs. */
+/** Adds to `plan` what one player stream needs. */
 function planPlayer(graph: Graph, player: Node, targets: Node[], plan: Plan): void {
   const outputs = portsOf(graph, player.id, 'out');
   const wanted = new Map<string, Pair>();
