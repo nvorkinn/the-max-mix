@@ -75,11 +75,11 @@ describe('watchLights', () => {
 
 describe('setLight', () => {
   it('asks the service to switch the light, with a brightness when one is given', () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetchMock);
     setLight('light.kitchen', false);
     setLight('light.kitchen', true, 60);
-    const bodies = fetchMock.mock.calls.map(([url, init]: [string, RequestInit]) => [url, init.body]);
+    const bodies = fetchMock.mock.calls.map(call => [call[0], call[1]?.body]);
     expect(bodies).toEqual([
       ['http://127.0.0.1:7341/lights/set', JSON.stringify({ id: 'light.kitchen', on: false })],
       ['http://127.0.0.1:7341/lights/set', JSON.stringify({ id: 'light.kitchen', on: true, brightness: 60 })]
