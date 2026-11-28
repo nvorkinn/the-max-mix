@@ -115,6 +115,22 @@ describe('PodcastsView', () => {
   });
 });
 
+describe('PodcastsView, with an episode from a show no longer listed', () => {
+  it('pauses from the foot of the lists, and goes back to the shows from the player', () => {
+    const controls = player({ current: CHOICE, isPlaying: true, position: 0, duration: 0 });
+    const others = { ...PODCASTS, shows: PODCASTS.shows.slice(1) };
+    render(<PodcastsView podcasts={others} player={controls} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(controls.togglePlay).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: /^Open / }));
+    // Letting go without a drag seeks nowhere.
+    fireEvent.pointerUp(screen.getByRole('slider', { name: 'Playback position' }));
+    expect(controls.seek).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('region', { name: 'Shows' })).toBeInTheDocument();
+  });
+});
+
 describe("TabBar's Podcasts tab", () => {
   it('comes after Spotify, only on a kiosk that has it', () => {
     const base = { ...SAMPLE.tabBar, onSelect: vi.fn(), onSearch: null };

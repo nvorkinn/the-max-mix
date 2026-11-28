@@ -6,6 +6,7 @@ import podcastsFixture from '../../../vendor/countdown-api/src/countdown_api/fix
 import * as account from '../countdown/account';
 import * as config from '../countdown/config';
 import * as api from '../podcasts/api';
+import { deferred } from '../test/deferred';
 import { PODCASTS_POLL_MS, usePodcasts, usePodcastsTab } from './usePodcasts';
 
 const CONFIG = fixture.config as TouchscreenConfig;
@@ -69,6 +70,27 @@ describe('usePodcastsTab', () => {
 
 describe('usePodcasts', () => {
   const PODCASTS = podcastsFixture.value as StoredPodcasts;
+
+  it('has nothing while the server gives nothing, and drops an answer that comes after the tab closed', async () => {
+    const second = deferred<StoredPodcasts | null>();
+    vi.spyOn(api, 'fetchPodcasts').mockResolvedValueOnce(null).mockReturnValueOnce(second.promise);
+    const { result, rerender } = renderHook(({ open }) => usePodcasts(open), { initialProps: { open: true } });
+    await waitFor(() => {
+      expect(api.fetchPodcasts).toHaveBeenCalledOnce();
+    });
+    expect(result.current).toBeNull();
+    rerender({ open: false });
+    rerender({ open: true });
+    await waitFor(() => {
+      expect(api.fetchPodcasts).toHaveBeenCalledTimes(2);
+    });
+    rerender({ open: false });
+    await act(async () => {
+      second.resolve(PODCASTS);
+      await Promise.resolve();
+    });
+    expect(result.current).toBeNull();
+  });
 
   it('reads the shows when the tab opens and every few minutes while it is open', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

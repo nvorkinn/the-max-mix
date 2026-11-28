@@ -4,6 +4,8 @@ import type { PodcastPlayback, StoredPodcasts } from 'countdown-api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../../vendor/countdown-api/src/countdown_api/fixtures/podcasts.json';
 import * as api from '../podcasts/api';
+import * as audioModule from '../podcasts/audio';
+import { deferred } from '../test/deferred';
 import { defined } from '../test/defined';
 import { FakeAudio } from '../test/fakeAudio';
 import { BACK_S, FORWARD_S, usePodcastPlayer } from './usePodcastPlayer';
@@ -152,5 +154,96 @@ describe('usePodcastPlayer', () => {
     });
     expect(report).toHaveBeenLastCalledWith('dagsnytt_atten', PART_LISTENED.id, 1033);
     expect(result.current.current?.episode.id).toBe(PLAYED.id);
+  });
+});
+
+describe('usePodcastPlayer, as the audio goes', () => {
+  it("takes the audio's own length once it knows it, and seeks within that", async () => {
+    const { result } = opened({ playback: { ...PLAYBACK, duration_s: 0 } });
+    await waitFor(() => {
+      expect(result.current.isPlaying).toBe(true);
+    });
+    expect(result.current.duration).toBe(3539);
+    act(() => {
+      audio().duration = Infinity;
+      audio().dispatchEvent(new Event('durationchange'));
+    });
+    expect(result.current.duration).toBe(3539);
+    act(() => {
+      audio().duration = 3000;
+      audio().dispatchEvent(new Event('durationchange'));
+    });
+    expect(result.current.duration).toBe(3000);
+    act(() => {
+      result.current.seek(99_999);
+    });
+    expect(audio().currentTime).toBe(3000);
+  });
+
+  it('says so when the audio fails, but not for a failure before it was given any', async () => {
+    const { result } = opened();
+    act(() => {
+      audio().dispatchEvent(new Event('error'));
+    });
+    expect(result.current.phase).toBe('loading');
+    await waitFor(() => {
+      expect(result.current.isPlaying).toBe(true);
+    });
+    act(() => {
+      audio().error = { code: 4 };
+      audio().dispatchEvent(new Event('error'));
+    });
+    expect(result.current.phase).toBe('failed');
+  });
+
+  it("says so when the audio can't be played at all", async () => {
+    vi.spyOn(audioModule, 'attachSource').mockRejectedValue(new audioModule.UnplayableError('no HLS'));
+    const { result } = opened({ playback: { ...PLAYBACK, format: 'hls' } });
+    await waitFor(() => {
+      expect(result.current.phase).toBe('failed');
+    });
+  });
+
+  it("goes by the list's progress when NRK says none, and does nothing before it is ready", async () => {
+    vi.spyOn(api, 'fetchPlayback').mockResolvedValue({ ...PLAYBACK, progress: null });
+    vi.spyOn(api, 'reportProgress').mockResolvedValue(true);
+    const { result } = renderHook(() => usePodcastPlayer(vi.fn()));
+    act(() => {
+      result.current.seek(10);
+      result.current.togglePlay();
+      result.current.pause();
+    });
+    expect(api.fetchPlayback).not.toHaveBeenCalled();
+    act(() => {
+      result.current.open({ show: DAGSNYTT, episode: PART_LISTENED });
+    });
+    await waitFor(() => {
+      expect(result.current.isPlaying).toBe(true);
+    });
+    expect(audio().currentTime).toBe(1027);
+  });
+
+  it('plays only the episode opened last, when two are opened before the first is ready', async () => {
+    const first = deferred<PodcastPlayback>();
+    vi.spyOn(api, 'fetchPlayback')
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ ...PLAYBACK, progress: null });
+    vi.spyOn(api, 'reportProgress').mockResolvedValue(true);
+    const { result } = renderHook(() => usePodcastPlayer(vi.fn()));
+    act(() => {
+      result.current.open({ show: DAGSNYTT, episode: PART_LISTENED });
+    });
+    act(() => {
+      result.current.open({ show: DAGSNYTT, episode: PLAYED });
+    });
+    await waitFor(() => {
+      expect(result.current.isPlaying).toBe(true);
+    });
+    await act(async () => {
+      first.resolve(PLAYBACK);
+      await Promise.resolve();
+    });
+    expect(result.current.current?.episode.id).toBe(PLAYED.id);
+    expect(audio().currentTime).toBe(0);
   });
 });
