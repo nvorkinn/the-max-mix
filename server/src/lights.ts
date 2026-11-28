@@ -25,7 +25,7 @@ const MAX_RETRY_MS = 60_000;
 const ENTITY_ID = /^(light|switch|group)\.[\d_a-z]+$/;
 
 /** A light the owner allowed, with the name they gave it (null: Home Assistant's own). */
-export interface AllowedLight {
+interface AllowedLight {
   id: string;
   name: string | null;
 }
@@ -110,7 +110,7 @@ export function validSetRequest(body: unknown): SetRequest | null {
 }
 
 /** A light as the app shows it. */
-export interface ShownLight extends Omit<LightState, 'name'> {
+interface ShownLight extends Omit<LightState, 'name'> {
   id: string;
   name: string;
 }
