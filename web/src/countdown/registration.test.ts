@@ -247,18 +247,18 @@ describe('the setup on the server', () => {
   const STATUS = touchscreen.setup_spotify as SetupStatus;
 
   it('reports with the secret alone, before anyone owns the kiosk, and answers where the setup stands', async () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    const secret = deviceSecret();
     const fetch = answers(Response.json(touchscreen.setup_account));
     expect(await sendSetupReport(touchscreen.setup_start)).toEqual(touchscreen.setup_account);
     const [url, init] = fetch.mock.calls[0] ?? [];
     expect((url as URL).href).toBe('https://api.countdown.build/api/devices/setup');
     expect(init?.method).toBe('PUT');
-    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${EXAMPLE_SECRET}`);
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${secret}`);
     expect(JSON.parse(init?.body as string)).toEqual(touchscreen.setup_start);
   });
 
   it('tells a server without the route from one that cannot be asked now', async () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    deviceSecret();
     answers(new Response(null, { status: 404 }));
     expect(await sendSetupReport({ phone_paired: true })).toBe('unsupported');
     answers(Response.json({ error: 'unknown device' }, { status: 401 }));
@@ -268,7 +268,7 @@ describe('the setup on the server', () => {
   });
 
   it('asks where the setup stands', async () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    const secret = deviceSecret();
     const fetch = answers(Response.json(STATUS));
     const controller = new AbortController();
     expect(await setupStatus(controller.signal)).toEqual(STATUS);
@@ -276,11 +276,11 @@ describe('the setup on the server', () => {
     expect((url as URL).href).toBe('https://api.countdown.build/api/devices/setup');
     expect(init?.method).toBe('GET');
     expect(init?.signal).toBe(controller.signal);
-    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${EXAMPLE_SECRET}`);
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${secret}`);
   });
 
   it('says when the server has no setup for the kiosk, and when it cannot be asked', async () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    deviceSecret();
     answers(new Response(null, { status: 404 }));
     expect(await setupStatus()).toBe('unreported');
     answers(Response.json({ error: 'unknown device' }, { status: 401 }));
@@ -290,7 +290,7 @@ describe('the setup on the server', () => {
   });
 
   it('tells a server whose preflight fails for want of the route, by asking with nothing to preflight', async () => {
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    deviceSecret();
     // A browser fails the call itself, as it does off the network; the plain ask after it is answered.
     const preflightFails = (probe: Response) =>
       vi
@@ -314,7 +314,7 @@ describe('the setup on the server', () => {
     const fetch = answers(Response.json(STATUS));
     expect(await setupStatus()).toBeNull();
     expect(await sendSetupReport({})).toBeNull();
-    localStorage.setItem('maxmix.deviceSecret', EXAMPLE_SECRET);
+    deviceSecret();
     vi.stubEnv('VITE_COUNTDOWN_API', '');
     expect(await setupStatus()).toBeNull();
     expect(await sendSetupReport({}, new AbortController().signal)).toBeNull();
