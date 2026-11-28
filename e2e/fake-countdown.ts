@@ -185,12 +185,12 @@ async function fakeSpotifySignIns(page: Page) {
  * when a test gives one. Returns the Authorization header of each request, the whole config each save made, and the
  * people with a Soloist key saved, which a test may add to (and `soloistCodes`: who a key code was asked for), and the
  * Spotify sign-ins handed to phones. `change` is a change made elsewhere, as on the settings site: sections of the
- * config replaced, with a new version.
+ * config replaced, with a new version. The account route is refused too, unless the test has its own (`hasAccount`).
  */
 export async function fakeCountdownServer(
   page: Page,
   config: object | null,
-  { saveStatus }: { saveStatus?: number } = {}
+  { saveStatus, hasAccount = false }: { saveStatus?: number; hasAccount?: boolean } = {}
 ) {
   const authorizations: string[] = [];
   const saves: Record<string, unknown>[] = [];
@@ -232,6 +232,15 @@ export async function fakeCountdownServer(
       body: JSON.stringify(current)
     });
   });
+  // The owner's account (GET /api/devices/account), which the Parcels page asks about: refused, as for a secret the
+  // server doesn't know, so no test waits on the real server for it. A test that fakes the route itself (`hasAccount`)
+  // keeps its own.
+  if (!hasAccount) {
+    await page.route(`${API}/api/devices/account`, route => {
+      const cors = corsFor(route.request().headers()['origin']);
+      return route.fulfill({ status: route.request().method() === 'OPTIONS' ? 204 : 401, headers: cors });
+    });
+  }
   // The weather is the same whether or not someone owns the kiosk, as the Dashboard's made-up weather was.
   await page.route(`${API}/api/devices/weather`, route => {
     const request = route.request();

@@ -198,7 +198,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
 
       // Paired on the phone: both are on Spotify. The kiosk starts no sign-in of its own, and the same verifier is
       // still there after the page reloaded.
-      const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+      const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned, { hasAccount: true });
       rest.server = owned;
       server.pair();
       setup.phone.pair();
@@ -317,7 +317,7 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
     await shot('2-account');
 
     // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to.
-    const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned, { hasAccount: true });
     server.pair();
     await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
     await expect(page.getByText('Sign in to Spotify on your phone.')).toBeVisible();
