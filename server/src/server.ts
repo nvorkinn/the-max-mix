@@ -78,6 +78,20 @@
 //                           {"channel", "current", "installed", "failed", "busy", "result", "latest"}
 //   GET  /health            {"heartbeatAgeMs"}: how long ago the app last sent a heartbeat, or null; for kiosk-health
 //   WS   /soloist           Spotify Soloist's events, and the app's commands to it (soloist-socket.ts)
+//   Home Assistant's lights (lights.ts), the ones the kiosk's config allows; the app's origin only:
+//   POST /lights/config     {"server", "secret"}   read the kiosk's config from countdown-server for its lights: 200, the
+//                           status: {"state": "off" | "signed-out" | "connecting" | "ready" | "unreachable",
+//                           "lights": [{"id", "name", "on", "brightness", "dimmable", "available"}]}
+//   GET  /lights            the status
+//   GET  /lights/events     server-sent events: the status now, and again after every change
+//   POST /lights/set        {"id", "on", "brightness"?: 1-100}   switch a light: 204, 403 for one that is not allowed,
+//                           409 while not signed in, 502 when Home Assistant did not do it
+//   POST /lights/sign-in    start a sign-in to Home Assistant: 200 {"url"}, its login page for the kiosk's browser to
+//                           go to (the watchdog then gives the app ten minutes to come back); 409 without lights
+//   GET  /lights/callback?code=&state=   where that login comes back to, from Home Assistant's page and so from no
+//                           origin: only the state made at the start is taken, once. Keeps the sign-in and sends the
+//                           browser back to the app (303), whether or not it worked
+//   POST /lights/sign-out   forget the sign-in to Home Assistant: 204
 // Only the app's origin is answered (CORS, and every POST and WebSocket is refused without its Origin header, so no other
 // web page can trigger one). A request carries no command, only the name of one of the fixed actions in actions.ts.
 // The Wi-Fi requests are for the app's Settings > Wi-Fi, which opens by itself when the kiosk starts with no network: the
@@ -98,12 +112,15 @@ import { Camera } from './camera.ts';
 import type { Viewer } from './camera.ts';
 import { handoverFile, MAX_HANDOVER, parseHandover } from './handover.ts';
 import type { HandoverStore } from './handover.ts';
+import { callService, followEntities, sessionFile } from './home-assistant.ts';
 import { isLoopback, listenForHotspot } from './hotspot-portal.ts';
 import { Hotspot, HotspotError } from './hotspot.ts';
 import type { HotspotInfo, HotspotStatus } from './hotspot.ts';
 import { readText, updateIO } from './image-update-io.ts';
 import { check as checkForUpdate, readState } from './image-update.ts';
 import type { Checked } from './image-update.ts';
+import { Lights, SIGN_IN_MS, validConfigRequest, validSetRequest } from './lights.ts';
+import type { ConfigRequest, LightsStatus, SetRequest, SetResult } from './lights.ts';
 import type { LyricsQuery } from './lyrics-sources.ts';
 import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
@@ -203,6 +220,18 @@ export interface Deps {
   soloist: (request: SoloistRequest) => Promise<SoloistState>;
   /** Stops Spotify Soloist until someone is asked for again. */
   stopSoloist: () => Promise<void>;
+  /** Home Assistant's lights that the kiosk's config allows (lights.ts). */
+  lights: {
+    configure: (request: ConfigRequest) => Promise<LightsStatus>;
+    status: () => LightsStatus;
+    add: (listener: (status: LightsStatus) => void) => () => void;
+    set: (request: SetRequest) => Promise<SetResult>;
+    /** Home Assistant's login page to go to, or null when the config has no lights. */
+    startSignIn: () => string | null;
+    /** Takes what the login came back with; whether the kiosk is now signed in. */
+    finishSignIn: (state: string, code: string) => Promise<boolean>;
+    signOut: () => Promise<void>;
+  };
   hotspot: {
     start: () => Promise<HotspotInfo>;
     stop: () => Promise<void>;
@@ -397,6 +426,72 @@ function streamSonosEvents(request: IncomingMessage, response: ServerResponse, d
   });
 }
 
+const SET_LIGHT_STATUS: Record<SetResult, number> = { done: 204, 'not-allowed': 403, 'not-ready': 409, failed: 502 };
+
+/** POST /lights/config: reads the kiosk's config for its lights; answers where they stand. */
+async function postLightsConfig(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  const configRequest = validConfigRequest(JSON.parse(await readBody(request)));
+  if (configRequest === null) {
+    response.writeHead(400).end();
+    return;
+  }
+  sendJson(response, 200, await deps.lights.configure(configRequest));
+}
+
+/** POST /lights/set: switches one of the allowed lights; the status to answer with. */
+async function setLightStatus(request: IncomingMessage, deps: Deps): Promise<number> {
+  const change = validSetRequest(JSON.parse(await readBody(request)));
+  return change === null ? 400 : SET_LIGHT_STATUS[await deps.lights.set(change)];
+}
+
+/** The lights' POSTs: the config to read, a light to switch, and signing in and out. */
+async function postLights(url: string, request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
+  if (url === '/lights/config') {
+    await postLightsConfig(request, response, deps);
+    return;
+  }
+  if (url === '/lights/sign-in') {
+    const login = deps.lights.startSignIn();
+    if (login === null) response.writeHead(409).end();
+    else sendJson(response, 200, { url: login });
+    return;
+  }
+  if (url === '/lights/sign-out') await deps.lights.signOut();
+  response.writeHead(url === '/lights/set' ? await setLightStatus(request, deps) : 204).end();
+}
+
+/** Where Home Assistant's login comes back to (GET /lights/callback), which is this service's own address. */
+const LIGHTS_CALLBACK = '/lights/callback';
+
+/**
+ * GET /lights/callback: the kiosk's browser, back from Home Assistant's login with a one-time code. Whatever comes of
+ * it, the browser goes on to the app, whose Lights tab shows whether the kiosk is signed in.
+ */
+async function finishLightsSignIn(url: string, response: ServerResponse, origin: string, deps: Deps): Promise<void> {
+  const query = new URL(url, LOCAL_ORIGIN).searchParams;
+  const state = query.get('state');
+  const code = query.get('code');
+  if (state && code) await deps.lights.finishSignIn(state, code);
+  response.writeHead(303, { Location: `${origin || LOCAL_ORIGIN}/?kiosk=1` }).end();
+}
+
+/** GET /lights/events: sends where the lights stand now, and again after every change, until the app goes away. */
+function streamLights(request: IncomingMessage, response: ServerResponse, deps: Deps): void {
+  response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+  const send = (status: LightsStatus) => {
+    response.write(`data: ${JSON.stringify(status)}\n\n`);
+  };
+  send(deps.lights.status());
+  const stop = deps.lights.add(send);
+  const keepAlive = setInterval(() => {
+    response.write(': still here\n\n');
+  }, KEEP_ALIVE_MS);
+  request.on('close', () => {
+    clearInterval(keepAlive);
+    stop();
+  });
+}
+
 /** GET /sonos/groups, /sonos/now and /sonos/art. */
 async function getSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = new URL(request.url ?? '', LOCAL_ORIGIN);
@@ -564,6 +659,13 @@ async function post(request: IncomingMessage, response: ServerResponse, deps: De
     case '/soloist/stop': {
       await deps.stopSoloist();
       break;
+    }
+    case '/lights/config':
+    case '/lights/set':
+    case '/lights/sign-in':
+    case '/lights/sign-out': {
+      await postLights(url, request, response, deps);
+      return;
     }
     case '/sonos/play':
     case '/sonos/control':
@@ -874,6 +976,11 @@ async function handleGet(
     await getLyrics(request, response, origin, deps);
     return;
   }
+  // The login's way back is a page navigation from Home Assistant, so it has no origin to check: its state is checked.
+  if (url === LIGHTS_CALLBACK || url.startsWith(`${LIGHTS_CALLBACK}?`)) {
+    await finishLightsSignIn(url, response, origin, deps);
+    return;
+  }
   const appOnly = appOnlyGet(url, request, response, deps);
   if (!appOnly) await get(url, response, deps, isFromApp(request, origin));
   else if (isFromApp(request, origin)) await appOnly();
@@ -893,6 +1000,19 @@ function appOnlyGet(
   if (url === '/sonos/events') {
     return () => {
       streamSonosEvents(request, response, deps);
+      return Promise.resolve();
+    };
+  }
+  // The lights are the household's, and following them keeps a connection to Home Assistant open.
+  if (url === '/lights') {
+    return () => {
+      sendJson(response, 200, deps.lights.status());
+      return Promise.resolve();
+    };
+  }
+  if (url === '/lights/events') {
+    return () => {
+      streamLights(request, response, deps);
       return Promise.resolve();
     };
   }
@@ -977,6 +1097,8 @@ export function serveSpeakers(
     soloistStateDir: string;
     /** The name Soloist goes by in Spotify Connect (soloistDeviceName). */
     soloistDeviceName: string;
+    /** Where the sign-in to Home Assistant is kept (home-assistant.ts). */
+    lightsSessionFile: string;
   },
   update?: Update
 ): Server {
@@ -1026,6 +1148,11 @@ export function serveSpeakers(
       bluetoothMonitor.note(message);
     }
   });
+  const lights = new Lights({
+    store: sessionFile(deps.lightsSessionFile),
+    follow: followEntities(),
+    call: callService()
+  });
   const soloistPlayer = new SoloistPlayer({ stateDir: deps.soloistStateDir, deviceName: deps.soloistDeviceName });
   const streamPort = Number(process.env['SONOS_STREAM_PORT']) || DEFAULT_STREAM_PORT;
   serveTabletStream(streamPort);
@@ -1055,6 +1182,24 @@ export function serveSpeakers(
     setBrightness: (percent, isFaded) => setBrightness(percent, undefined, isFaded ? FADE_MS : 0),
     soloist: request => soloistPlayer.play(request),
     stopSoloist: () => soloistPlayer.stop(),
+    lights: {
+      configure: request => lights.configure(request),
+      status: () => lights.status(),
+      add: listener => lights.add(listener),
+      set: request => lights.set(request),
+      startSignIn: () => {
+        // The login is this service's own, so it comes back here whichever origin the app is served from.
+        const url = lights.startSignIn({
+          clientId: `${LOCAL_ORIGIN}/`,
+          redirectUri: `${LOCAL_ORIGIN}${LIGHTS_CALLBACK}`
+        });
+        // The browser now leaves the app for Home Assistant's pages, which send no heartbeats.
+        if (url !== null) watchdog.away(SIGN_IN_MS);
+        return url;
+      },
+      finishSignIn: (state, code) => lights.finishSignIn(state, code),
+      signOut: () => lights.signOut()
+    },
     phonePairing: new PhonePairing({
       discover: onCode => discoverPhones(onCode),
       nearby: () => bluetoothMonitor.nearbyNamed(),

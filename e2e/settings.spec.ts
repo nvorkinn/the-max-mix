@@ -249,10 +249,10 @@ test.describe('Settings', { tag: '@settings' }, () => {
       await page.route('http://127.0.0.1:7341/**', route => {
         const { pathname } = new URL(route.request().url());
         // The app also sends its errors to the kiosk's log (POST /log), hands its saved data over (POST /handover), asks
-        // an image Pi's update channel (POST /update/check) and reads which speakers play (GET); none is what is being
-        // asked about here.
+        // an image Pi's update channel (POST /update/check), says where its config is for the lights (POST
+        // /lights/config) and reads which speakers play (GET); none is what is being asked about here.
         const method = route.request().method();
-        const isOther = ['/log', '/handover', '/update/check'].includes(pathname);
+        const isOther = ['/log', '/handover', '/update/check', '/lights/config'].includes(pathname);
         if (method === 'POST' && !isOther) asked.push(`${method} ${pathname}`);
         return route.fulfill({ status: 204 });
       });

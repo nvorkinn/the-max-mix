@@ -862,7 +862,7 @@ interface FakeEpisode {
   image_url: string | null;
   progress: { position_s: number; finished: boolean } | null;
 }
-export interface FakePodcasts {
+interface FakePodcasts {
   fetched_at: string | null;
   shows: { id: string; title: string; image_url: string | null; pinned: boolean; episodes: FakeEpisode[] }[];
 }
@@ -871,7 +871,7 @@ export interface FakePodcasts {
 export const podcastsExample = (): FakePodcasts => structuredClone(podcastsFixture.value);
 
 /** Where the fake episodes' audio is, for a test to answer with its own. */
-export const PODCAST_AUDIO = 'https://podkast.nrk.no/fil/**';
+const PODCAST_AUDIO = 'https://podkast.nrk.no/fil/**';
 
 /**
  * A WAV file of `seconds` of silence, small enough to fake an episode with (8 kHz, 8-bit, mono): the audio element

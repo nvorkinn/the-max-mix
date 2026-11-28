@@ -12,7 +12,7 @@ export const BACK_S = 15;
 export const FORWARD_S = 30;
 
 /** `loading` while the server is asked what to play, `failed` when it couldn't say or the audio can't play. */
-export type PodcastPhase = 'loading' | 'ready' | 'failed';
+type PodcastPhase = 'loading' | 'ready' | 'failed';
 
 export interface PodcastPlayer {
   /** The episode open in the player, or null for none. */

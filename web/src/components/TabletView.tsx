@@ -51,6 +51,7 @@ import {
   saveThemeColour,
   toThemeColour
 } from '../utils/themeColour';
+import { useLights } from '../hooks/useLights';
 import { DYNAMIC_LINGER_MS, useLingers } from '../hooks/useLingers';
 import { usePodcastPlayer } from '../hooks/usePodcastPlayer';
 import { usePodcasts, usePodcastsTab } from '../hooks/usePodcasts';
@@ -68,6 +69,7 @@ import AlbumArtPlayer from './AlbumArtPlayer';
 import SpotifySetup from './SpotifySetup';
 import TrackQueue, { type QueueStatus } from './TrackQueue';
 import { describePlayback, PlayerProblem, type PlaybackNoticeState, type PlayerNotice } from './PlaybackNotice';
+import LightsView from './LightsView';
 import LyricsPanel from './LyricsPanel';
 import PodcastsView from './PodcastsView';
 import PanelNav from './PanelNav';
@@ -366,6 +368,11 @@ export default function TabletView() {
   // A kiosk whose Podcasts tab was taken away while it was open goes back to the Dashboard.
   if (screen === 'podcasts' && !hasPodcasts) setScreen('dashboard');
   const podcasts = usePodcasts(screen === 'podcasts');
+  // The lights the owner let this kiosk switch (Home Assistant's, through the Pi's service); most kiosks have none.
+  const lights = useLights(onKiosk, ownedConfig);
+  const hasLights = lights.status !== null && lights.status.state !== 'off';
+  // A kiosk whose lights were taken away while their tab was open goes back to the Dashboard.
+  if (screen === 'lights' && !hasLights) setScreen('dashboard');
   const brightness = display ? brightnessOf(display) : BRIGHTNESS_MAX;
   const changeBrightness = (percent: number) => {
     if (display) deviceConfig.save('display', { ...display, brightness: percent });
@@ -695,7 +702,8 @@ export default function TabletView() {
     onSwitchPerson: isAuthenticated ? spotifyId => void switchTo(spotifyId) : null,
     // Holding the clock opens the debug console, on every tab.
     onClockHold: () => setIsDebugOpen(true),
-    hasPodcasts
+    hasPodcasts,
+    hasLights
   };
 
   // A playback problem is listed under the tab bar's warning, and one with a fix is said in the player too, in the
@@ -862,6 +870,21 @@ export default function TabletView() {
             holidayDaysAhead={ownedConfig?.holidays?.days_ahead}
           />
         </section>
+        {hasLights && (
+          <section
+            className="app-tab-panel on-photo"
+            role="tabpanel"
+            id={tabPanelId('lights')}
+            aria-label={translate('tabs.lights', language)}
+            hidden={screen !== 'lights'}
+          >
+            {screen === 'lights' && <TabBackdrop now={tabBar.now} />}
+            <div className="floating-bar">
+              <TabBar {...tabBar} onSearch={null} />
+            </div>
+            {screen === 'lights' && <LightsView {...lights} />}
+          </section>
+        )}
         <section
           className="app-tab-panel on-photo"
           role="tabpanel"

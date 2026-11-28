@@ -7,7 +7,7 @@
 // `now`, so a fixture can drive the board with a simulated clock and a test can freeze it.
 
 /** @public The tabs, in the order the tab bar shows them. */
-export type TabId = 'spotify' | 'podcasts' | 'dashboard' | 'settings';
+export type TabId = 'spotify' | 'podcasts' | 'dashboard' | 'lights' | 'settings';
 
 /** @public */
 export interface TabBarProps {
@@ -26,6 +26,8 @@ export interface TabBarProps {
   onClockHold?: (() => void) | null;
   /** Whether the kiosk has the Podcasts tab (its owner has NRK linked); without it there is no such tab. */
   hasPodcasts?: boolean;
+  /** Whether the kiosk has lights to switch, which the Lights tab is for; without any there is no such tab. */
+  hasLights?: boolean;
   /** The song playing, in a card hanging under the Spotify tab; null (or left out) hides it. */
   nowPlaying?: NowPlayingProps | null;
 }

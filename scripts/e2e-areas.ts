@@ -96,6 +96,11 @@ export const AREAS: Area[] = [
     ]
   },
   {
+    tag: 'lights',
+    title: 'Lights',
+    sources: [/^web\/src\/components\/LightsView/, /^web\/src\/lights\//, /^web\/src\/hooks\/useLights/]
+  },
+  {
     tag: 'update',
     title: 'Software update',
     sources: [

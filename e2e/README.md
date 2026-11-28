@@ -15,6 +15,7 @@ browser. Run them with `npm run build && npm run test:e2e`.
 | `lyrics.spec.ts`     | Lyrics (`@lyrics`)                                                                                            |
 | `podcasts.spec.ts`   | Podcasts (`@podcasts`): the Podcasts tab with NRK linked, its shows, episodes and player                      |
 | `speakers.spec.ts`   | Speakers (`@speakers`): the drawer and AirPlay on the kiosk                                                   |
+| `lights.spec.ts`     | Lights (`@lights`): the Lights tab on a kiosk with Home Assistant lights                                      |
 | `settings.spec.ts`   | Settings (`@settings`): colour, polling, screen sleep, kiosk-only buttons                                     |
 | `sleep.spec.ts`      | Screen sleep (`@sleep`): idle sleep, quiet hours, polling while asleep                                        |
 | `dialogs.spec.ts`    | Focus and dismissal of the dialogs: Settings, Speakers, debug (`@dialogs`)                                    |
