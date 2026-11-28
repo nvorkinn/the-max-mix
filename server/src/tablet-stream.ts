@@ -83,36 +83,6 @@ export class TabletStream {
     return this.listeners.size;
   }
 
-  /** Answers GET or HEAD of STREAM_PATH; anything else is 404. */
-  handle(request: IncomingMessage, response: ServerResponse): void {
-    const path = (request.url ?? '').split('?', 1)[0];
-    if (path !== STREAM_PATH || (request.method !== 'GET' && request.method !== 'HEAD')) {
-      response.writeHead(404).end();
-      return;
-    }
-    response.writeHead(200, { 'Content-Type': 'audio/flac', 'Cache-Control': 'no-cache', Connection: 'close' });
-    if (request.method === 'HEAD') {
-      response.end();
-      return;
-    }
-    response.write(flacHeader());
-    const listener: Listener = { response, frame: 0 };
-    this.listeners.add(listener);
-    console.info(`tablet stream: ${request.socket.remoteAddress ?? 'a speaker'} listens (${this.listeners.size})`);
-    request.socket.on('close', () => {
-      this.listeners.delete(listener);
-      console.info(`tablet stream: ${request.socket.remoteAddress ?? 'a speaker'} left (${this.listeners.size})`);
-      if (this.listeners.size === 0) this.stop();
-    });
-    this.run();
-  }
-
-  /** Once a frame's time: when pw-record gave nothing since the last one, a frame of silence keeps the stream going. */
-  tick(): void {
-    if (!this.heard && this.listeners.size > 0) this.send(SILENCE);
-    this.heard = false;
-  }
-
   /** Sends one frame of audio to every listener. */
   private send(pcm: Buffer): void {
     for (const listener of this.listeners) {
@@ -157,6 +127,36 @@ export class TabletStream {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     this.pending = Buffer.alloc(0);
+  }
+
+  /** Answers GET or HEAD of STREAM_PATH; anything else is 404. */
+  handle(request: IncomingMessage, response: ServerResponse): void {
+    const path = (request.url ?? '').split('?', 1)[0];
+    if (path !== STREAM_PATH || (request.method !== 'GET' && request.method !== 'HEAD')) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': 'audio/flac', 'Cache-Control': 'no-cache', Connection: 'close' });
+    if (request.method === 'HEAD') {
+      response.end();
+      return;
+    }
+    response.write(flacHeader());
+    const listener: Listener = { response, frame: 0 };
+    this.listeners.add(listener);
+    console.info(`tablet stream: ${request.socket.remoteAddress ?? 'a speaker'} listens (${this.listeners.size})`);
+    request.socket.on('close', () => {
+      this.listeners.delete(listener);
+      console.info(`tablet stream: ${request.socket.remoteAddress ?? 'a speaker'} left (${this.listeners.size})`);
+      if (this.listeners.size === 0) this.stop();
+    });
+    this.run();
+  }
+
+  /** Once a frame's time: when pw-record gave nothing since the last one, a frame of silence keeps the stream going. */
+  tick(): void {
+    if (!this.heard && this.listeners.size > 0) this.send(SILENCE);
+    this.heard = false;
   }
 }
 
