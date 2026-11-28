@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { Page, Route } from '@playwright/test';
-import { DEVICE_CONFIGS, fakeCountdownServer, locate } from './fake-countdown.ts';
+import type { Locator, Page, Route } from '@playwright/test';
+import { DEVICE_CONFIGS, fakeCountdownServer, locate, LOCATED } from './fake-countdown.ts';
 import { fakeSignedOutSoloist } from './fake-soloist.ts';
 import { PIXEL } from './fake-spotify.ts';
 
@@ -72,6 +72,18 @@ async function fakePhonePairing(page: Page) {
     });
   });
   return { report, asked };
+}
+
+/** That each element is wholly on the screen, so nothing on the page needs scrolling to. */
+async function expectOnScreen(page: Page, elements: Locator[]) {
+  const { width, height } = page.viewportSize() ?? { width: 0, height: 0 };
+  const boxes = await Promise.all(elements.map(element => element.boundingBox()));
+  for (const box of boxes) {
+    expect(box).not.toBeNull();
+    expect(box?.y ?? -1).toBeGreaterThanOrEqual(0);
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(height);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+  }
 }
 
 const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
@@ -182,48 +194,77 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       await shot('4c-soloist-set');
 
       // Location: where the kiosk is was found in the background, from the Wi-Fi networks the Pi sees, while the owner
-      // was on their phone, and the stops near it with it.
+      // was on their phone, and the stops near it with it. The nearest postcode is the large one, the other nine under it.
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByRole('region', { name: 'Location' })).toBeVisible({ timeout: 10_000 });
-      const postcodes = page.getByRole('list', { name: 'Postcode' }).getByRole('button');
-      await expect(postcodes).toHaveText(locate.locate.postcodes.map(near => near.postcode));
-      await expect(page.getByRole('textbox', { name: 'Not listed? Type your postcode' })).toBeVisible();
+      await expect(page.getByText('Is this your postcode?')).toBeVisible();
+      const nearest = page.getByRole('button', { name: 'SE17 2PU Our best guess' });
+      const others = page.getByRole('list', { name: 'Or one of these nearby?' }).getByRole('button');
+      await expect(nearest).toBeVisible();
+      await expect(others).toHaveText(
+        LOCATED.postcodes
+          .slice(1)
+          .map(near => near.postcode)
+          .toSorted((a, b) => a.localeCompare(b))
+      );
+      await expect(page.getByRole('button', { name: 'Not here? Type it in' })).toBeVisible();
       expect(owned.located[0]).toEqual(locate.locate_request);
       const atGoogles = `?latitude=${locate.locate.latitude}&longitude=${locate.locate.longitude}`;
       expect(owned.near.length).toBeGreaterThan(0);
       expect(new Set(owned.near)).toEqual(new Set([atGoogles]));
       await shot('5-location');
-      // Each large enough to tap, and all of them on the screen.
-      const boxes = await Promise.all((await postcodes.all()).map(postcode => postcode.boundingBox()));
-      for (const box of boxes) {
-        expect(box?.height).toBeGreaterThanOrEqual(60);
-        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(size.height);
-      }
+      await expectOnScreen(page, [
+        nearest,
+        ...(await others.all()),
+        page.getByRole('button', { name: 'Skip for now' })
+      ]);
+      expect((await others.first().boundingBox())?.height).toBeGreaterThanOrEqual(56);
 
       // A postcode picked is the notice board's, and the weather's place; the stops near it, none ticked, are those
-      // found in the background, with no second ask.
+      // found in the background, with no second ask: three stations and five bus stops at most, side by side.
       const asked = owned.near.length;
-      await postcodes.first().click();
-      const stops = page.getByRole('list', { name: 'Stops nearby' }).getByRole('button');
-      await expect(stops.first()).toContainText('Westmoreland Road');
-      await expect(stops.first()).toContainText('140 m');
-      await expect(stops.first()).toHaveAttribute('aria-pressed', 'false');
+      await nearest.click();
+      const stations = page.getByRole('region', { name: 'Stations' }).getByRole('button');
+      const busStops = page.getByRole('region', { name: 'Bus stops' }).getByRole('button');
+      await expect(page.getByText('Your nearest stops')).toBeVisible();
+      await expect(busStops).toHaveCount(5);
+      await expect(stations).toHaveCount(3);
+      await expect(busStops.first()).toContainText('Westmoreland Road');
+      await expect(busStops.first()).toContainText('140 m');
+      await expect(busStops.first()).toHaveAttribute('aria-pressed', 'false');
+      await expect(stations.first()).toContainText('Kennington');
       expect(owned.near).toHaveLength(asked);
       expect(owned.saves.at(-2)).toMatchObject({
         notice_board: { postcode: 'SE17 2PU', country: 'GB', address: null }
       });
       expect(owned.saves.at(-1)).toMatchObject({ weather: { location: 'Oslo', key: 'oslo-no-3143244' } });
+      const continueButton = page.getByRole('button', { name: 'Continue' });
       await shot('5b-location-stops');
-      await stops.first().click();
-      await expect(stops.first()).toHaveAttribute('aria-pressed', 'true');
+      await expectOnScreen(page, [...(await stations.all()), ...(await busStops.all()), continueButton]);
+      await busStops.first().click();
+      await stations.first().click();
+      await expect(busStops.first()).toHaveAttribute('aria-pressed', 'true');
+      await shot('5c-location-stops-picked');
+
+      // What was set, and that Settings changes it.
+      await continueButton.click();
+      await expect(page.getByText('You’re all set!')).toBeVisible();
+      await expect(page.getByText('2 stops')).toBeVisible();
+      expect(owned.saves.at(-1)).toMatchObject({
+        arrivals: {
+          stops: [
+            { source: 'tfl', id: '490014501K' },
+            { source: 'tfl', id: '940GZZLUKNG' }
+          ],
+          group_by_route: false
+        }
+      });
+      await shot('5d-location-set');
 
       // Presence: the scan only starts once they have Bluetooth open and tap OK.
       const bluetooth = await fakePhonePairing(page);
       await page.getByRole('button', { name: 'Continue' }).click();
       await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
-      expect(owned.saves.at(-1)).toMatchObject({
-        arrivals: { stops: [{ source: 'tfl', id: '490014501K' }], group_by_route: false }
-      });
       await expect(page.getByText('Open Settings, then Bluetooth, on your phone, and tap OK.')).toBeVisible();
       await shot('5-presence');
       expect(bluetooth.asked).toEqual([]);

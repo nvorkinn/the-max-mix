@@ -613,34 +613,39 @@ export const STRINGS = {
     en: 'Select your phone when it appears.',
     nb: 'Velg telefonen din når den dukker opp.'
   },
-  'setup.location_pick': {
-    en: 'Pick your postcode. It sets the weather and the local notices.',
-    nb: 'Velg postnummeret ditt. Det bestemmer været og de lokale oppslagene.'
-  },
-  'setup.location_lead': {
-    en: 'Type your postcode. It sets the weather and the local notices.',
-    nb: 'Skriv postnummeret ditt. Det bestemmer været og de lokale oppslagene.'
-  },
-  'setup.location_looking': { en: 'Finding nearby postcodes', nb: 'Finner postnumre i nærheten' },
-  'setup.location_type': { en: 'Not listed? Type your postcode', nb: 'Står det ikke her? Skriv postnummeret ditt' },
-  'setup.location_type_only': { en: 'Your postcode', nb: 'Postnummeret ditt' },
+  'setup.location_where': { en: 'Is this your postcode?', nb: 'Er dette postnummeret ditt?' },
+  'setup.location_nearest': { en: 'Our best guess', nb: 'Vår beste gjetning' },
+  'setup.location_others': { en: 'Or one of these nearby?', nb: 'Eller et av disse i nærheten?' },
+  'setup.location_looking': { en: 'Finding where you are…', nb: 'Finner ut hvor du er …' },
+  'setup.location_type': { en: 'Not here? Type it in', nb: 'Ikke her? Skriv det inn' },
+  'setup.location_type_title': { en: 'What’s your postcode?', nb: 'Hva er postnummeret ditt?' },
   'setup.location_use': { en: 'Use', nb: 'Bruk' },
-  'setup.location_skip': { en: 'Skip', nb: 'Hopp over' },
-  'setup.location_unknown': { en: 'Couldn’t find that postcode.', nb: 'Fant ikke det postnummeret.' },
+  'setup.location_skip': { en: 'Skip for now', nb: 'Hopp over for nå' },
+  'setup.location_unknown': {
+    en: 'Hmm, we couldn’t find that postcode.',
+    nb: 'Hmm, vi fant ikke det postnummeret.'
+  },
   'setup.location_failed': {
-    en: 'Couldn’t save. Try again in a moment.',
-    nb: 'Kunne ikke lagre. Prøv igjen om litt.'
+    en: 'Something went wrong there. Try again?',
+    nb: 'Noe gikk galt. Prøve igjen?'
   },
-  'setup.location_stops': {
-    en: 'Tap the stops to show departures from.',
-    nb: 'Trykk på stoppene du vil se avganger fra.'
+  'setup.location_stops': { en: 'Your nearest stops', nb: 'Stoppene nærmest deg' },
+  'setup.location_stops_tap': { en: 'Tap the ones you use.', nb: 'Trykk på dem du bruker.' },
+  'setup.location_no_stops': {
+    en: 'We couldn’t find any stops nearby.',
+    nb: 'Vi fant ingen stopp i nærheten.'
   },
-  'setup.location_stops_search': {
-    en: 'Search for the stops to show departures from.',
-    nb: 'Søk etter stoppene du vil se avganger fra.'
+  'setup.location_stations': { en: 'Stations', nb: 'Stasjoner' },
+  'setup.location_bus_stops': { en: 'Bus stops', nb: 'Bussholdeplasser' },
+  'setup.location_set': { en: 'You’re all set!', nb: 'Da er du klar!' },
+  'setup.location_stop_count': {
+    en: '{count, plural, =0 {No stops yet} one {# stop} other {# stops}}',
+    nb: '{count, plural, =0 {Ingen stopp ennå} one {# stopp} other {# stopp}}'
   },
-  'setup.location_nearby': { en: 'Stops nearby', nb: 'Stopp i nærheten' },
-  'setup.location_search': { en: 'Search for another stop', nb: 'Søk etter et annet stopp' },
+  'setup.location_in_settings': {
+    en: 'You can change these, or add more stops, in Settings whenever you like.',
+    nb: 'Du kan endre dette, eller legge til flere stopp, i Innstillinger når du vil.'
+  },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }
 } as const satisfies Record<string, Readonly<Record<Language, string>>>;
