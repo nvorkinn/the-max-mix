@@ -101,6 +101,14 @@ describe('ProgressReporter', () => {
     expect(send).toHaveBeenLastCalledWith(630);
   });
 
+  it('waits first_after_s after the seek that opens the episode where NRK has it', () => {
+    const { send, run, play, seek } = reporter();
+    seek(100, false);
+    play();
+    run(5000);
+    expect(send.mock.calls).toEqual([[105]]);
+  });
+
   it('does not report the position NRK already has, or the same one twice', () => {
     const { send, seek, stop } = reporter();
     // Opening the episode seeks to where it was left.

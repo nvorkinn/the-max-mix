@@ -61,8 +61,9 @@ export class ProgressReporter {
 
   private flush(): void {
     const now = Math.floor(this.position());
-    this.hasReported = true;
+    // Nothing new to say (opening the episode seeks to where NRK has it) is not a report.
     if (now === this.last) return;
+    this.hasReported = true;
     this.last = now;
     this.send(now);
   }
