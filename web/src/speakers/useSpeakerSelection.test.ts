@@ -127,7 +127,7 @@ describe('useSpeakerSelection with Sonos', () => {
     expect(given.playOnSonos).not.toHaveBeenCalled();
   });
 
-  it("has the rooms ticked play along with this tablet: the first plays its stream, the others join it", async () => {
+  it('has the rooms ticked play along with this tablet: the first plays its stream, the others join it', async () => {
     const setTabletVolume = vi.fn().mockResolvedValue(undefined);
     const given = options({ setTabletVolume });
     const { result } = renderHook(() => useSpeakerSelection(given));

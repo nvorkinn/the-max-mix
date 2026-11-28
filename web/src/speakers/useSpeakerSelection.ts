@@ -202,7 +202,8 @@ export function useSpeakerSelection({
   }, []);
   const readGroups = useCallback(async () => {
     try {
-      const [{ groups: list }, rooms] = await Promise.all([findSonosOnPi(), getStreamingRooms()]);
+      // A Pi from before the tablet's stream answers 404 there: no rooms play along.
+      const [{ groups: list }, rooms] = await Promise.all([findSonosOnPi(), getStreamingRooms().catch(() => [])]);
       setGroups(list);
       setStreaming(current => (current.join('\n') === rooms.join('\n') ? current : rooms));
     } catch (caught) {
@@ -307,8 +308,8 @@ export function useSpeakerSelection({
   const carryOut = async (from: SpeakerChoice | null, to: SpeakerChoice) => {
     const alongBefore = from?.family === 'tablet' ? from.rooms : [];
     // The tablet's outputs are handed back to the Pi's own output as soon as the music goes anywhere else.
-    const outputsBefore = from?.family === 'tablet' ? from.outputs.length : getChosenSpeakers().length;
-    const routed = onKiosk && (outputsBefore > 0 || alongBefore.length > 0);
+    const outputsBefore = () => (from?.family === 'tablet' ? from.outputs.length : getChosenSpeakers().length);
+    const routed = onKiosk && (alongBefore.length > 0 || outputsBefore() > 0);
     if (routed && to.family !== 'tablet') {
       routeAudio([], legacy);
       setChosenSpeakers([]);
@@ -398,7 +399,8 @@ export function useSpeakerSelection({
   if (leader) playingOn = { name: sonosName ?? 'Sonos' };
   else if (confirmed?.family === 'tablet' && confirmed.rooms.length > 0) {
     const [room] = confirmed.rooms;
-    playingOn = confirmed.rooms.length === 1 && room !== undefined ? { name: room } : { speakers: confirmed.rooms.length };
+    playingOn =
+      confirmed.rooms.length === 1 && room !== undefined ? { name: room } : { speakers: confirmed.rooms.length };
   } else if (confirmed?.family === 'tablet') {
     const [only] = confirmed.outputs;
     if (confirmed.outputs.length === 0) playingOn = { tablet: true };
