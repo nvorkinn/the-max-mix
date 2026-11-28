@@ -8,12 +8,15 @@
 //                         endless WAV at http://<pi>:<port>/stream.wav (default port 7350) until Ctrl+C, which takes the
 //                         sink and links away again. Logs each connection and how much it sent.
 //   play <room> [flac|wav] Takes the room out of its group, sets it to 5% and plays the stream on it (default FLAC).
+//   clip [seconds]       Records that many seconds (default 20) to a finished FLAC file, served at /clip.flac;
+//                         `play <room> clip` plays it.
 //   join <room> <to>      Adds the room to the group <to> leads, at 5%.
 //   stop <room>           Stops the room's group and takes it back out of any group.
 //
 // It never sets a Sonos above 5%. Results go in this thread's notes, not in the repository.
 import { spawn, spawnSync } from 'node:child_process';
 import dgram from 'node:dgram';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 
@@ -183,6 +186,7 @@ function wavHeader(): Buffer {
 
 // FLAC, the format AirConnect sends Sonos: verbatim (uncompressed) frames of BLOCK samples, which need no encoder.
 const BLOCK = 4096;
+const CLIP = '/tmp/maxmix-clip.flac';
 
 function crc8(bytes: Uint8Array): number {
   let crc = 0;
@@ -213,7 +217,7 @@ function codedNumber(value: number): number[] {
   return bytes;
 }
 
-function flacHeader(): Buffer {
+function flacHeader(totalSamples = 0): Buffer {
   const info = Buffer.alloc(4 + 4 + 34);
   info.write('fLaC', 0);
   info.writeUInt8(0x80, 4); // last metadata block, STREAMINFO
@@ -221,7 +225,7 @@ function flacHeader(): Buffer {
   info.writeUInt16BE(BLOCK, 8);
   info.writeUInt16BE(BLOCK, 10);
   // min/max frame size unknown (0); then 20 bits rate, 3 bits channels-1, 5 bits bps-1, 36 bits total samples (0).
-  const packed = (BigInt(RATE) << 44n) | (BigInt(CHANNELS - 1) << 41n) | (15n << 36n);
+  const packed = (BigInt(RATE) << 44n) | (BigInt(CHANNELS - 1) << 41n) | (15n << 36n) | BigInt(totalSamples);
   info.writeBigUInt64BE(packed, 18);
   return info;
 }
@@ -272,6 +276,22 @@ function serve(port: number): void {
   const server = createServer((request, response) => {
     const from = request.socket.remoteAddress;
     console.log(`${new Date().toISOString()} ${request.method} ${request.url} from ${from} ${request.headers['user-agent']}`);
+    if (request.url?.startsWith('/clip.flac') && existsSync(CLIP)) {
+      // A finished file, with its length, and byte ranges as Sonos asks for them.
+      const file = readFileSync(CLIP);
+      const range = /bytes=(\d+)-(\d*)/.exec(request.headers.range ?? '');
+      const first = range ? Number(range[1]) : 0;
+      const last = range?.[2] ? Number(range[2]) : file.length - 1;
+      const headers = {
+        'content-type': 'audio/flac',
+        'accept-ranges': 'bytes',
+        'content-length': String(last - first + 1),
+        ...(range && { 'content-range': `bytes ${first}-${last}/${file.length}` })
+      };
+      response.writeHead(range ? 206 : 200, headers);
+      response.end(request.method === 'HEAD' ? undefined : file.subarray(first, last + 1));
+      return;
+    }
     const flac = request.url?.startsWith('/stream.flac') ?? false;
     if (!flac && !request.url?.startsWith('/stream.wav')) {
       response.writeHead(404).end();
@@ -344,17 +364,38 @@ function serve(port: number): void {
   process.on('SIGTERM', cleanup);
 }
 
+/** Records `seconds` of what Soloist plays into a finished FLAC file, CLIP, which serve then offers at /clip.flac. */
+async function clip(seconds: number): Promise<void> {
+  const recorder = spawn('pw-record', [
+    '--target', SINK, '-P', '{ stream.capture.sink=true }', '--rate', String(RATE), '--channels', String(CHANNELS),
+    '--format', 's16', '-'
+  ]);
+  const chunks: Buffer[] = [];
+  recorder.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+  await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+  recorder.kill();
+  const pcm = Buffer.concat(chunks);
+  const size = BLOCK * CHANNELS * 2;
+  const frames = Math.floor(pcm.length / size);
+  const parts = [flacHeader(frames * BLOCK)];
+  for (let index = 0; index < frames; index += 1) parts.push(flacFrame(pcm.subarray(index * size, (index + 1) * size), index));
+  writeFileSync(CLIP, Buffer.concat(parts));
+  let peak = 0;
+  for (let at = 0; at + 1 < pcm.length; at += 2) peak = Math.max(peak, Math.abs(pcm.readInt16LE(at)));
+  console.log(`${CLIP}: ${((frames * BLOCK) / RATE).toFixed(1)} s, peak ${peak}`);
+}
+
 async function play(name: string, port: number, format: string): Promise<void> {
   const target = await room(name);
   if (target.coordinator !== target.uuid) await avTransport(target.host, 'BecomeCoordinatorOfStandaloneGroup');
   await setVolume(target.host);
-  const url = `http://${piAddress()}:${port}/stream.${format}`;
+  const url = `http://${piAddress()}:${port}/${format === 'clip' ? 'clip.flac' : `stream.${format}`}`;
   const didl =
     '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" ' +
     'xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">' +
     '<item id="maxmix" parentID="0" restricted="true"><dc:title>The Max Mix</dc:title>' +
-    '<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>' +
-    `<res protocolInfo="http-get:*:audio/${format}:*">${xmlEscape(url)}</res></item></DIDL-Lite>`;
+    `<upnp:class>object.item.audioItem.${format === 'clip' ? 'musicTrack' : 'audioBroadcast'}</upnp:class>` +
+    `<res protocolInfo="http-get:*:audio/${format === 'wav' ? 'wav' : 'flac'}:*">${xmlEscape(url)}</res></item></DIDL-Lite>`;
   await avTransport(
     target.host,
     'SetAVTransportURI',
@@ -405,7 +446,11 @@ switch (command) {
     break;
   }
   case 'play': {
-    await play(first ?? '', port(undefined), second === 'wav' ? 'wav' : 'flac');
+    await play(first ?? '', port(undefined), second === 'wav' || second === 'clip' ? second : 'flac');
+    break;
+  }
+  case 'clip': {
+    await clip(Number(first ?? 20));
     break;
   }
   case 'join': {
@@ -417,6 +462,6 @@ switch (command) {
     break;
   }
   default: {
-    console.log('commands: rooms | serve [port] | play <room> [flac|wav] | join <room> <to> | stop <room>');
+    console.log('commands: rooms | serve [port] | play <room> [flac|wav|clip] | clip [s] | join <room> <to> | stop <room>');
   }
 }
