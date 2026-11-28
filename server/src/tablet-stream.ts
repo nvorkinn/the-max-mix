@@ -10,7 +10,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { BLOCK, CHANNELS, FRAME_BYTES, flacFrame, flacHeader, RATE } from './flac.ts';
 
 /** The sink the tablet's sound goes to for Sonos (node.name in 50-kiosk-raop.conf). */
-export const TABLET_SINK = 'kiosk_sonos';
+const TABLET_SINK = 'kiosk_sonos';
 export const STREAM_PATH = '/tablet.flac';
 /** The port when SONOS_STREAM_PORT is not set (kiosk-server.service sets it). */
 export const DEFAULT_STREAM_PORT = 6330;
@@ -29,7 +29,7 @@ export interface Recorder {
   kill: () => unknown;
 }
 
-export type StartRecorder = () => Recorder;
+type StartRecorder = () => Recorder;
 
 function recorderEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { LC_ALL: 'C' };

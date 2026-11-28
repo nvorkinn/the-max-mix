@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { crossfade } from '../utils/crossfade';
 import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { useAlongVolume } from '../hooks/useAlongVolume';
 import { useSonosPlayer } from '../hooks/useSonosPlayer';
 import { useSpotifyCooldown } from '../hooks/useSpotifyCooldown';
 import { useKioskUpdate } from '../hooks/useKioskUpdate';
@@ -604,8 +605,16 @@ export default function TabletView() {
     sonosName: sonos.name ?? null,
     transfer: transferPlayback,
     playOnSonos,
-    leaveSonos: sonos.leave
+    leaveSonos: sonos.leave,
+    setTabletVolume: setVolume
   });
+  // While Sonos rooms play along with this tablet, its slider moves their volume (useAlongVolume).
+  const along = useAlongVolume(onKiosk && !followingSonos ? speakers.alongRoom : null);
+  const alongVolume = along.volume;
+  const playerPlayback =
+    alongVolume !== null && shownPlayback?.device
+      ? { ...shownPlayback, device: { ...shownPlayback.device, volume_percent: alongVolume, supports_volume: true } }
+      : shownPlayback;
   // Once a choice is saved there is nothing left to do in the Speakers view, so a moment later the panel goes back to its
   // own view. Another change, or another view tapped meanwhile, calls that off.
   const [speakersSaved, setSpeakersSaved] = useState(false);
@@ -714,13 +723,17 @@ export default function TabletView() {
                   />
                 ) : (
                   <AlbumArtPlayer
-                    playback={shownPlayback}
+                    playback={playerPlayback}
                     isPlaying={isPlaying}
                     onPlayPause={followingSonos ? sonos.togglePlay : togglePlay}
                     onNext={followingSonos ? sonos.nextTrack : nextTrack}
                     onPrevious={followingSonos ? sonos.previousTrack : previousTrack}
                     onSeek={followingSonos ? sonos.seek : seek}
-                    onVolumeChange={(vol: number) => (followingSonos ? sonos.setVolume(vol) : setVolume(vol / 100))}
+                    onVolumeChange={(vol: number) => {
+                      if (followingSonos) sonos.setVolume(vol);
+                      else if (alongVolume === null) void setVolume(vol / 100);
+                      else along.setVolume(vol);
+                    }}
                     onToggleShuffle={toggleShuffle}
                     onCycleRepeat={cycleRepeat}
                     controlsEnabled={controlsEnabled}

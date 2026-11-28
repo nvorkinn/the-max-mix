@@ -65,7 +65,7 @@ export interface SonosOperations {
   play: (room: string, uri: string, next: readonly string[], positionMs: number) => Promise<void>;
   /** Makes the room's group play the stream at `url`, the tablet's own sound (tablet-stream.ts), and plays it. */
   stream: (room: string, url: string) => Promise<void>;
-  /** The rooms of every group that plays the stream at `url`, leading room first within each group. */
+  /** The rooms of every group that plays the stream at `url` now, leading room first within each group. */
   streaming: (url: string) => Promise<string[]>;
   now: (room: string) => Promise<SonosNowPlaying>;
   /** The Spotify songs in the room's group's Sonos queue after the one it plays, at most `limit`. */

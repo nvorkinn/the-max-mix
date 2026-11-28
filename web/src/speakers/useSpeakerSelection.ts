@@ -10,14 +10,18 @@ import {
 import type { AudioOutput } from '../audio/airplay';
 import { SAFE_START_VOLUME } from '../audio/safeVolume';
 import {
+  controlSonos,
   findSonosOnPi,
   getKioskSonosLeader,
   getSonosNow,
+  getStreamingRooms,
   joinSonosGroup,
   leaveSonosGroup,
   setKioskSonosLeader,
   setSonosVolume,
+  streamToSonos,
   subscribeKioskSonosLeader,
+  TABLET_SINK,
   watchSonosOnPi
 } from '../sonos/kiosk';
 import type { PiSonosGroup } from '../sonos/kiosk';
@@ -91,6 +95,47 @@ async function regroupSonos(leader: string, current: readonly string[], rooms: r
   if (!rooms.includes(leader)) setKioskSonosLeader(rooms[0] ?? null);
 }
 
+/**
+ * Has the rooms play along with this tablet: the first one plays its stream (out of any group of rooms not chosen) and
+ * the others join it; or, while some already do (`playing`, the leading room first), adds and takes out rooms, adding
+ * first, so the music never stops; or, with no rooms left, pauses them, which lets the stream go.
+ */
+async function streamTo(rooms: readonly string[], playing: readonly string[], groups: readonly PiSonosGroup[] | null) {
+  const [leader] = playing;
+  if (leader === undefined) {
+    const [first, ...rest] = rooms;
+    if (first === undefined) return;
+    if (groupRooms(first, groups).some(room => !rooms.includes(room))) await leaveSonosGroup(first);
+    await turnDownSonos(first);
+    await streamToSonos(first);
+    for (const room of rest) {
+      // eslint-disable-next-line no-await-in-loop
+      await turnDownSonos(room);
+      // eslint-disable-next-line no-await-in-loop
+      await joinSonosGroup(room, first);
+    }
+    return;
+  }
+  if (rooms.length === 0) {
+    await controlSonos(leader, 'pause');
+    return;
+  }
+  const joining = rooms.filter(room => !playing.includes(room));
+  const leaving = playing.filter(room => !rooms.includes(room));
+  // With its leading room taken out, Sonos hands the group to another room, which keeps fetching the stream.
+  const to = rooms.includes(leader) ? leader : (playing.find(room => rooms.includes(room)) ?? leader);
+  for (const room of joining) {
+    // eslint-disable-next-line no-await-in-loop
+    await turnDownSonos(room);
+    // eslint-disable-next-line no-await-in-loop
+    await joinSonosGroup(room, to);
+  }
+  for (const room of leaving) {
+    // eslint-disable-next-line no-await-in-loop
+    await leaveSonosGroup(room);
+  }
+}
+
 /** What plays: a speaker or Sonos group by name, this tablet itself, or this many of its speakers. */
 export type PlayingOn = { name: string } | { tablet: true } | { speakers: number };
 
@@ -111,6 +156,11 @@ export interface SpeakerSelectionOptions {
   playOnSonos: (room: string) => Promise<void>;
   /** Pauses the kiosk's Sonos group and lets it go. */
   leaveSonos: () => Promise<void>;
+  /**
+   * Sets this tablet's own Spotify volume, 0 to 1. Rooms that play along take its sound after that volume, so it goes
+   * to full when they start; their own volume, turned down first, is what the slider then moves.
+   */
+  setTabletVolume?: (volume: number) => Promise<unknown>;
 }
 
 /**
@@ -125,10 +175,13 @@ export function useSpeakerSelection({
   sonosName,
   transfer,
   playOnSonos,
-  leaveSonos
+  leaveSonos,
+  setTabletVolume
 }: SpeakerSelectionOptions) {
   const [devices, setDevices] = useState<SpotifyDevice[] | null>(null);
   const [groups, setGroups] = useState<PiSonosGroup[] | null>(null);
+  // The rooms that play this tablet's sound, as the Pi last said, each group's leading room first.
+  const [streaming, setStreaming] = useState<string[]>([]);
   const [outputs, setOutputs] = useState<AudioOutput[] | null>(null);
   const [legacy, setLegacy] = useState(false);
   const [draft, setDraft] = useState<SpeakerChoice | null>(null);
@@ -149,8 +202,9 @@ export function useSpeakerSelection({
   }, []);
   const readGroups = useCallback(async () => {
     try {
-      const { groups: list } = await findSonosOnPi();
+      const [{ groups: list }, rooms] = await Promise.all([findSonosOnPi(), getStreamingRooms()]);
       setGroups(list);
+      setStreaming(current => (current.join('\n') === rooms.join('\n') ? current : rooms));
     } catch (caught) {
       debugLog('warn', 'sonos', `Finding the Sonos rooms failed: ${errorMessage(caught)}`);
     }
@@ -198,13 +252,19 @@ export function useSpeakerSelection({
     void readOutputs();
     return watchAudioOutputs(() => void readOutputs());
   }, [onKiosk, readOutputs]);
-  // While the view shows, rooms joining or leaving (here or in the Sonos app) are read again as the Pi reports them.
+  // On the kiosk the rooms are read once at the start (the view, when it opens, reads them anyway), since rooms may still
+  // play along with this tablet from before.
+  const [openAtStart] = useState(open);
   useEffect(() => {
-    if (!onKiosk || !open) return;
-    return watchSonosOnPi(change => {
-      if (change === 'groups') void readGroups();
-    });
-  }, [onKiosk, open, readGroups]);
+    if (onKiosk && !openAtStart) void readGroups();
+  }, [onKiosk, openAtStart, readGroups]);
+  // While the view shows, or rooms play along with this tablet (its slider moves them), rooms joining or leaving and the
+  // stream starting or stopping (here or in the Sonos app) are read again as the Pi reports them.
+  const isAlong = streaming.length > 0;
+  useEffect(() => {
+    if (!onKiosk || (!open && !isAlong)) return;
+    return watchSonosOnPi(() => void readGroups());
+  }, [onKiosk, open, isAlong, readGroups]);
 
   // Where the music plays now: a Sonos group the kiosk started, else this tablet with the outputs the Pi says it sends
   // the sound to (or, from an older Pi, the ones this page last chose), else the Connect device Spotify names.
@@ -221,7 +281,7 @@ export function useSpeakerSelection({
     if (onKiosk) {
       linked = legacy || !outputs ? getChosenSpeakers() : shownOutputs.filter(output => output.linked).map(o => o.id);
     }
-    confirmed = tabletChoice(linked);
+    confirmed = tabletChoice(linked, onKiosk ? streaming : []);
   } else if (playingDeviceId) confirmed = { family: 'connect', id: playingDeviceId };
   const confirmedRef = useRef(confirmed);
   useEffect(() => {
@@ -245,8 +305,10 @@ export function useSpeakerSelection({
 
   /** Does what moving from `from` to `to` takes, without waiting for it to show. */
   const carryOut = async (from: SpeakerChoice | null, to: SpeakerChoice) => {
+    const alongBefore = from?.family === 'tablet' ? from.rooms : [];
     // The tablet's outputs are handed back to the Pi's own output as soon as the music goes anywhere else.
-    const routed = onKiosk && (from?.family === 'tablet' ? from.outputs.length : getChosenSpeakers().length) > 0;
+    const outputsBefore = from?.family === 'tablet' ? from.outputs.length : getChosenSpeakers().length;
+    const routed = onKiosk && (outputsBefore > 0 || alongBefore.length > 0);
     if (routed && to.family !== 'tablet') {
       routeAudio([], legacy);
       setChosenSpeakers([]);
@@ -259,6 +321,7 @@ export function useSpeakerSelection({
     }
     if (from?.family === 'sonos') await leaveSonos();
     if (to.family === 'connect') {
+      if (alongBefore.length > 0) await streamTo([], streaming, groups);
       await transfer(to.id);
       return;
     }
@@ -272,15 +335,18 @@ export function useSpeakerSelection({
         setSpeakerVolume(output, SAFE_START_VOLUME);
       }
     }
-    routeAudio(to.outputs, legacy);
+    routeAudio(to.rooms.length > 0 ? [...to.outputs, TABLET_SINK] : to.outputs, legacy);
     setChosenSpeakers(to.outputs);
+    const playing = alongBefore.length > 0 ? streaming : [];
+    if (to.rooms.length > 0 || playing.length > 0) await streamTo(to.rooms, playing, groups);
+    if (alongBefore.length === 0 && to.rooms.length > 0) await setTabletVolume?.(1);
   };
 
   /** Reads again what shows the change, until it does; whether it did. */
   const confirm = async (target: SpeakerChoice): Promise<boolean> => {
     for (let read = 0; read < CONFIRM_READS; read += 1) {
       if (sameChoice(confirmedRef.current, target)) return true;
-      if (target.family === 'sonos') void readGroups();
+      if (target.family === 'sonos' || (target.family === 'tablet' && onKiosk)) void readGroups();
       if (onKiosk && target.family === 'tablet') void readOutputs();
       // eslint-disable-next-line no-await-in-loop
       await wait(CONFIRM_MS);
@@ -327,9 +393,13 @@ export function useSpeakerSelection({
     ...remembered.map(device => ({ ...device, remembered: true }))
   ].filter(device => device.id !== browserDeviceId && !roomNames.has(device.name.toLowerCase()));
 
+  const along = confirmed?.family === 'tablet' ? confirmed.rooms : [];
   let playingOn: PlayingOn | undefined;
   if (leader) playingOn = { name: sonosName ?? 'Sonos' };
-  else if (confirmed?.family === 'tablet') {
+  else if (confirmed?.family === 'tablet' && confirmed.rooms.length > 0) {
+    const [room] = confirmed.rooms;
+    playingOn = confirmed.rooms.length === 1 && room !== undefined ? { name: room } : { speakers: confirmed.rooms.length };
+  } else if (confirmed?.family === 'tablet') {
     const [only] = confirmed.outputs;
     if (confirmed.outputs.length === 0) playingOn = { tablet: true };
     else if (only !== undefined && confirmed.outputs.length === 1) {
@@ -358,6 +428,8 @@ export function useSpeakerSelection({
     refreshing,
     /** This tablet plays, so its outputs (AirPlay, Bluetooth) can be chosen. */
     tabletPlaying: confirmed?.family === 'tablet',
+    /** The room leading the Sonos rooms that play along with this tablet, whose group volume the slider moves; or null. */
+    alongRoom: streaming.find(room => along.includes(room)) ?? null,
     /** What plays, in English for the debug console. */
     playingLabel,
     /** What plays, for the player to name in the tablet's language. */

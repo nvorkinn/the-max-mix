@@ -212,14 +212,21 @@ async function stream(room: string, url: string): Promise<void> {
   await device.Play();
 }
 
-/** The rooms of every group whose leading room plays the stream at `url`. */
+/**
+ * The rooms of every group whose leading room plays the stream at `url`, not paused or stopped (a group paused on it is
+ * one the app let go of; while the tablet itself is paused the stream carries silence and the group still plays).
+ */
 async function streaming(url: string): Promise<string[]> {
   const groups = await zoneGroups();
   const playing = await Promise.all(
     groups.map(async group => {
       try {
-        const media = await deviceOf(group.coordinator).AVTransportService.GetMediaInfo();
-        return media.CurrentURI === url;
+        const device = deviceOf(group.coordinator);
+        const [media, transport] = await Promise.all([
+          device.AVTransportService.GetMediaInfo(),
+          device.AVTransportService.GetTransportInfo()
+        ]);
+        return media.CurrentURI === url && ['PLAYING', 'TRANSITIONING'].includes(transport.CurrentTransportState);
       } catch {
         return false;
       }
