@@ -54,7 +54,7 @@ export function formatClock(seconds: number): string {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
 }
 
-/** An episode's length in hours and minutes, as Intl writes them in the language: 58 min, 1 hr, 2 min. */
+/** An episode's length in hours and minutes, as Intl writes them in the language: 59 mins, 1 hr 5 mins. */
 export function formatLength(seconds: number, language: Language): string {
   const totalMinutes = Math.max(1, Math.round(seconds / 60));
   const hours = Math.floor(totalMinutes / 60);

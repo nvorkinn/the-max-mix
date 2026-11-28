@@ -43,7 +43,7 @@ describe('fetchDeviceAccount', () => {
   it("gets the owner's account's links with the device secret", async () => {
     register();
     const fetch = answer(200, fixture.account);
-    await expect(fetchDeviceAccount()).resolves.toEqual({ parcel: { linked: false }, spotify: { linked: true } });
+    await expect(fetchDeviceAccount()).resolves.toEqual(fixture.account);
     const [input, init] = fetch.mock.calls[0] ?? [''];
     const request = new Request(input, init);
     expect(request.url).toBe('https://countdown.build/api/devices/account');

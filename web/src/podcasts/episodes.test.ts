@@ -73,11 +73,11 @@ describe('formatting', () => {
   });
 
   it('writes an episode’s length in hours and minutes', () => {
-    expect(formatLength(3539, 'en')).toBe('59 min');
+    expect(formatLength(3539, 'en')).toBe('59 mins');
     expect(formatLength(3600, 'en')).toBe('1 hr');
-    expect(formatLength(3900, 'en')).toBe('1 hr 5 min');
+    expect(formatLength(3900, 'en')).toBe('1 hr 5 mins');
     expect(formatLength(20, 'en')).toBe('1 min');
-    expect(formatLength(3900, 'nb')).toMatch(/^1 t 5 min$/);
+    expect(formatLength(3900, 'nb')).toBe('1 t 5 min');
   });
 
   it('writes the day, with the year only when it is not this one', () => {
