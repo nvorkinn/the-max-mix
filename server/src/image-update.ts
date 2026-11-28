@@ -452,12 +452,10 @@ export async function run(io: UpdateIO, isScheduled: boolean): Promise<Checked |
   }
   try {
     const done = await install(io);
-    if (done.result === 'up-to-date') {
-      io.log(`Up to date (${done.current ?? 'unknown version'}).`);
-    } else if (done.result === 'failed') {
+    if (done.result === 'installed') await apply(io);
+    if (done.result === 'up-to-date') io.log(`Up to date (${done.current ?? 'unknown version'}).`);
+    if (done.result === 'failed') {
       io.log(`${done.latest ?? ''} failed on this Pi before, so it is not installed again.`);
-    } else if (done.result === 'installed') {
-      await apply(io);
     }
     return done;
   } finally {
