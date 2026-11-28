@@ -1140,11 +1140,12 @@ describe('TabletView', () => {
           vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue({
             ...BACKLIT,
             display: { ...BACKLIT.display, quiet_hours: { on: true, start: 22 * 60, end: 7 * 60 } }
-          } as TouchscreenConfig);
+          });
           const fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
           vi.stubGlobal('fetch', fetch);
           renderOnSpotifyTab(<TabletView />);
-          await act(() => vi.advanceTimersByTimeAsync(QUIET_DIM_MS + 1000));
+          // The config loads first; the screen then dims well before the minute it sleeps at.
+          await act(() => vi.advanceTimersByTimeAsync(4 * QUIET_DIM_MS));
           expect(backlights(fetch)).toEqual([80, 1]);
         });
 

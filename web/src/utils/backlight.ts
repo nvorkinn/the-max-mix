@@ -26,8 +26,7 @@ export function brightnessOf(display: TouchscreenConfig['display']): number {
 
 /** The backlight of a dimmed screen whose setting is `percent`: a share of it, or in `quiet` hours the lowest; never off. */
 export function dimmedBrightness(percent: number, quiet = false): number {
-  if (quiet) return QUIET_DIMMED;
-  return Math.max(1, Math.round(percent * DIMMED_SHARE));
+  return quiet ? QUIET_DIMMED : Math.max(1, Math.round(percent * DIMMED_SHARE));
 }
 
 /** Asks the kiosk to set its screen's backlight (server/src/backlight.ts), fading down to it with `fade`. */
