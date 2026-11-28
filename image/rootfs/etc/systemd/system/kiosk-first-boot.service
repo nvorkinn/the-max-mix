@@ -1,7 +1,7 @@
 # Gets the data partition ready before it is mounted at /data, on every boot (server/src/kiosk-first-boot.ts): grows
 # and formats it on the first boot and after kiosk-reset, takes in Raspberry Pi Imager's settings from the card's first
-# partition (host name, the admin account's SSH keys, Wi-Fi) and gives the kernel the Pi's own host name. On a boot with
-# nothing to do it only checks, in well under a second.
+# partition (host name, the admin account's SSH keys, Wi-Fi) and the config.txt lines of the screen chosen there, and
+# gives the kernel the Pi's own host name. On a boot with nothing to do it only checks, in well under a second.
 [Unit]
 Description=THE MAX MIX data partition and first boot
 DefaultDependencies=no

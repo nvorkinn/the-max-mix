@@ -5,12 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import {
+  CARD_CONFIG,
   connectionFileName,
   DATA_PATHS,
   defaultHostname,
   ensureIdentity,
   FRESH_CARD,
   importImager,
+  didImportOwnConfig,
   keyFileValue,
   canGrow,
   nmConnection,
@@ -201,6 +203,25 @@ describe('importImager', () => {
     await writeFile(path.join(boot, 'config.txt'), '');
     expect(await importImager(boot, await folder(), { owner: ME })).toBeUndefined();
     expect(await readdir(boot)).toEqual(['config.txt']);
+  });
+});
+
+describe('didImportOwnConfig', () => {
+  it("moves the screen's config.txt lines from the card to /data, once", async () => {
+    const root = await folder();
+    const [boot, data] = [path.join(root, 'card'), path.join(root, 'data')];
+    await mkdir(boot);
+    const lines = 'dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n';
+    await writeFile(path.join(boot, CARD_CONFIG), lines);
+
+    await expect(didImportOwnConfig(boot, data)).resolves.toBe(true);
+    await expect(readFile(path.join(data, DATA_PATHS.ownConfig), 'utf8')).resolves.toBe(lines);
+    await expect(readdir(boot)).resolves.toEqual([]);
+
+    // Lines changed on /data since are left alone: the card has nothing more to give.
+    await writeFile(path.join(data, DATA_PATHS.ownConfig), 'camera_auto_detect=0\n');
+    await expect(didImportOwnConfig(boot, data)).resolves.toBe(false);
+    await expect(readFile(path.join(data, DATA_PATHS.ownConfig), 'utf8')).resolves.toBe('camera_auto_detect=0\n');
   });
 });
 

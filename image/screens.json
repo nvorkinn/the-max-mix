@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Touch Display 2",
+    "description": "Raspberry Pi's own touch screen, which the Pi finds by itself",
+    "pis": ["pi5-64bit", "pi4-64bit"]
+  },
+  {
+    "name": "Waveshare RPI-HMI-101D",
+    "description": "Waveshare's 10.1 inch touch screen with a camera, on the CAM/DISP 0 connector",
+    "pis": ["pi5-64bit"],
+    "image": "waveshare-101d",
+    "config": ["# Waveshare RPI-HMI-101D on DSI0", "dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0"]
+  },
+  {
+    "name": "HDMI screen",
+    "description": "Any screen on an HDMI port",
+    "pis": ["pi5-64bit", "pi4-64bit"]
+  }
+]

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   afterBoot,
@@ -414,6 +415,17 @@ describe('configWithOwn', () => {
     expect(config).toMatch(
       /\n\n# The Pi's own settings.*\n\[all\]\n# The Waveshare screen\ndtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0\n# The end of the Pi's own settings\.\n$/
     );
+  });
+
+  it("is the block the flash image's build writes for a screen (image/build.sh screen_card)", async () => {
+    const build = await readFile(new URL('../../image/build.sh', import.meta.url), 'utf8');
+    const lines = configWithOwn('image', 'own').split('\n', 6);
+    const [start, end] = [lines[2], lines[5]];
+    expect(lines).toEqual(['image', '', start, '[all]', 'own', end]);
+    expect(build).toContain(`"${start}"`);
+    expect(build).toContain(`"${end}"`);
+    // printf's format there: the image's lines, a blank line, the start, [all], the lines, the end.
+    expect(build).toContain(String.raw`'%s\n\n%s\n[all]\n%s\n%s\n'`);
   });
 
   it('writes the same file again, and replaces the lines written before', () => {

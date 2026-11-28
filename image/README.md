@@ -63,6 +63,14 @@ firmware does not find by itself:
 dtoverlay=vc4-kms-dsi-waveshare-panel,10_1_inch,dsi0
 ```
 
+A screen listed in [screens.json](screens.json) needs none of this by hand. Each entry is a screen, the Pis it goes
+with (`pis`, Imager's device tags) and, for a screen the firmware does not find, its `config` lines and the name of a
+flash `image` of its own. The Flash image workflow builds that image beside the plain one
+(`the-max-mix-<image>.img.zst`): the same card with the lines already in slot A's `config.txt`, and in
+`the-max-mix-config.txt` on the first partition, which the first boot moves to `/data/the-max-mix/config.txt`. Imager's
+list then has a device for each Pi and screen ("Raspberry Pi 5 with Waveshare RPI-HMI-101D"), and choosing it leads to
+that image, so a card flashed again still gets its screen's lines. Add a screen there once it has been tried on a Pi.
+
 Every slot's `config.txt` comes from the image, so the updater writes these lines into the end of it, under `[all]`:
 into each new slot as it is installed (RAUC's post-install handler), and into the slot the Pi runs from with
 `sudo kiosk-update boot-config` after the file changed, which counts from the next boot. Without them such a Pi
