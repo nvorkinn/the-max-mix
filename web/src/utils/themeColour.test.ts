@@ -112,7 +112,8 @@ describe('basePalette', () => {
       '--dynamic-accent-ink': '#111',
       '--dynamic-mark-from': '#f0f2f7',
       '--dynamic-mark-to': '#aab3c5',
-      '--dynamic-mark-ink': '#111'
+      '--dynamic-mark-ink': '#111',
+      '--dynamic-lyric': '#aab3c5'
     });
     expect(basePalette('navy')).toMatchObject({ '--dynamic-mark-from': '#6fa8ff', '--dynamic-mark-ink': '#fff' });
   });
@@ -148,6 +149,18 @@ describe('dynamicPalette', () => {
     const accent = rgbOf(palette['--dynamic-accent']);
     expect(contrast(accent, PAGE)).toBeGreaterThanOrEqual(4.5);
     expect(Number(palette['--dynamic-accent'].split(' ', 3)[2]?.replace('%)', ''))).toBeLessThanOrEqual(85);
+  });
+
+  it.each([
+    ['a deep blue', [20, 30, 140]],
+    ['a dark red', [90, 10, 10]],
+    ['a pale yellow', [250, 240, 180]],
+    ['a vivid green', [30, 220, 40]]
+  ] as const)('gives the sung lyrics a deep shade of %s that still reads on the navy', (_name, first) => {
+    const palette = dynamicPalette([first, [120, 40, 160]]);
+    const lyric = rgbOf(palette['--dynamic-lyric']);
+    expect(contrast(lyric, PAGE)).toBeGreaterThanOrEqual(3);
+    expect(contrast(lyric, PAGE)).toBeLessThan(contrast(rgbOf(palette['--dynamic-accent']), PAGE));
   });
 
   it('softens a vivid colour and keeps the play button out of the glare', () => {
