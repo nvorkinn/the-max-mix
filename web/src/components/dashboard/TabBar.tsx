@@ -1,4 +1,4 @@
-import { AudioLines, Clock3, LayoutGrid, Search, Settings } from 'lucide-react';
+import { AudioLines, Clock3, LayoutGrid, Lightbulb, Search, Settings } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatClockTime } from '../../utils/clockFormat';
 import type { TabBarProps, TabId } from '../../dashboard/props';
@@ -11,11 +11,13 @@ import ProblemsButton from '../ProblemsButton';
 import SpotifyIcon from '../SpotifyIcon';
 import NowPlaying from './NowPlaying';
 
-// Dashboard, the home screen, sits in the middle, with a tab to either side of it.
+// Dashboard, the home screen, sits in the middle, with a tab to either side of it; Lights, on a kiosk that has any,
+// comes after it.
 const TABS: readonly { id: TabId; label: StringId; icon: ReactNode }[] = [
   // Spotify's own logo in one colour, as its brand rules allow: white like the other tabs.
   { id: 'spotify', label: 'tabs.spotify', icon: <SpotifyIcon className="lucide" /> },
   { id: 'dashboard', label: 'tabs.dashboard', icon: <LayoutGrid aria-hidden="true" className="lucide" /> },
+  { id: 'lights', label: 'tabs.lights', icon: <Lightbulb aria-hidden="true" className="lucide" /> },
   { id: 'settings', label: 'tabs.settings', icon: <Settings aria-hidden="true" className="lucide" /> }
 ];
 
@@ -36,6 +38,7 @@ export default function TabBar({
   clockFormat,
   onSwitchPerson,
   onClockHold,
+  hasLights = false,
   nowPlaying = null
 }: Readonly<TabBarProps>) {
   const t = useT();
@@ -53,7 +56,7 @@ export default function TabBar({
       </div>
       <div className="dashboard-tabs-place">
         <div className="dashboard-tabs" role="tablist" aria-label={t('tabs.screens')}>
-          {TABS.map(tab => (
+          {TABS.filter(tab => hasLights || tab.id !== 'lights').map(tab => (
             <button
               key={tab.id}
               type="button"

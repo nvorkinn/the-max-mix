@@ -30,6 +30,22 @@ export const STRINGS = {
   'common.added': { en: 'Added', nb: 'Lagt til' },
   'common.nothing_found': { en: 'Nothing found.', nb: 'Fant ingenting.' },
 
+  // The Lights tab.
+  'lights.brightness': { en: 'Brightness of {name}', nb: 'Lysstyrke for {name}' },
+  'lights.none': {
+    en: 'No lights have been chosen for this screen yet.',
+    nb: 'Ingen lys er valgt for denne skjermen ennå.'
+  },
+  'lights.signed_out': {
+    en: 'This screen is not signed in to Home Assistant yet.',
+    nb: 'Denne skjermen er ikke logget inn på Home Assistant ennå.'
+  },
+  'lights.connecting': { en: 'Connecting to Home Assistant…', nb: 'Kobler til Home Assistant …' },
+  'lights.unreachable': {
+    en: 'Home Assistant can’t be reached. Trying again.',
+    nb: 'Får ikke kontakt med Home Assistant. Prøver igjen.'
+  },
+
   // Settings › General.
   'general.language': { en: 'Language', nb: 'Språk' },
   'general.time_format': { en: 'Time format', nb: 'Tidsformat' },
@@ -80,6 +96,7 @@ export const STRINGS = {
   'tabs.screens': { en: 'Screens', nb: 'Skjermer' },
   'tabs.spotify': { en: 'Spotify', nb: 'Spotify' },
   'tabs.dashboard': { en: 'Dashboard', nb: 'Oversikt' },
+  'tabs.lights': { en: 'Lights', nb: 'Lys' },
   'tabs.settings': { en: 'Settings', nb: 'Innstillinger' },
   'tabs.choose_music': { en: 'Choose music', nb: 'Velg musikk' },
   'tabs.signed_in_as': { en: 'Signed in as {name}', nb: 'Logget inn som {name}' },
