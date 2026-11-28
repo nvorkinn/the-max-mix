@@ -15,7 +15,10 @@ const pi = vi.hoisted(() => ({
   getSonosNow: vi.fn(),
   setSonosVolume: vi.fn(),
   joinSonosGroup: vi.fn(),
-  leaveSonosGroup: vi.fn()
+  leaveSonosGroup: vi.fn(),
+  getStreamingRooms: vi.fn(),
+  streamToSonos: vi.fn(),
+  controlSonos: vi.fn()
 }));
 const airplay = vi.hoisted(() => ({
   listAudioOutputs: vi.fn(),
@@ -37,6 +40,7 @@ const group = (...names: string[]): PiSonosGroup => ({
   rooms: names.map(name => ({ id: name, name }))
 });
 let groups: PiSonosGroup[] = [];
+let streaming: string[] = [];
 
 function options(overrides: Partial<SpeakerSelectionOptions> = {}): SpeakerSelectionOptions {
   return {
@@ -73,6 +77,10 @@ beforeEach(() => {
   pi.setSonosVolume.mockResolvedValue(undefined);
   pi.joinSonosGroup.mockResolvedValue(undefined);
   pi.leaveSonosGroup.mockResolvedValue(undefined);
+  streaming = [];
+  pi.getStreamingRooms.mockImplementation(() => Promise.resolve(streaming));
+  pi.streamToSonos.mockResolvedValue(undefined);
+  pi.controlSonos.mockResolvedValue(undefined);
   airplay.listAudioOutputs.mockResolvedValue({ outputs: [], legacy: false });
   airplay.watchAudioOutputs.mockReturnValue(vi.fn());
   airplay.getChosenSpeakers.mockReturnValue([]);
@@ -103,7 +111,7 @@ describe('useSpeakerSelection with Sonos', () => {
     const { result } = renderHook(() => useSpeakerSelection(options()));
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(result.current.outputs.map(shown => shown.id)).toEqual(['airplay.Mac mini', 'bluetooth.Kitchen']);
-    expect(result.current.confirmed).toEqual({ family: 'tablet', outputs: [] });
+    expect(result.current.confirmed).toEqual({ family: 'tablet', outputs: [], rooms: [] });
   });
 
   it('drops a draft on Cancel, changing nothing', async () => {
@@ -119,28 +127,67 @@ describe('useSpeakerSelection with Sonos', () => {
     expect(given.playOnSonos).not.toHaveBeenCalled();
   });
 
-  it('starts the first room ticked, turned down, and adds the others to it', async () => {
-    const given = options();
+  it('has the rooms ticked play along with this tablet: the first plays its stream, the others join it', async () => {
+    const setTabletVolume = vi.fn().mockResolvedValue(undefined);
+    const given = options({ setTabletVolume });
     const { result } = renderHook(() => useSpeakerSelection(given));
     await act(() => vi.advanceTimersByTimeAsync(0));
     act(() => result.current.toggle('sonos:Kitchen'));
     act(() => result.current.toggle('sonos:Bath'));
-    expect(result.current.dirty).toBe(true);
-    expect(given.playOnSonos).not.toHaveBeenCalled();
+    expect(result.current.shown).toEqual({ family: 'tablet', outputs: [], rooms: ['Bath', 'Kitchen'] });
     act(() => {
       void result.current.save();
     });
     await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(airplay.routeAudio).toHaveBeenCalledWith(['kiosk_sonos'], false);
     expect(pi.setSonosVolume).toHaveBeenCalledWith('Bath', 25);
-    expect(given.playOnSonos).toHaveBeenCalledWith('Bath');
+    expect(pi.streamToSonos).toHaveBeenCalledWith('Bath');
     expect(pi.joinSonosGroup).toHaveBeenCalledWith('Kitchen', 'Bath');
-    expect(getKioskSonosLeader()).toBe('Bath');
-    expect(result.current.saving).toBe(true);
+    expect(setTabletVolume).toHaveBeenCalledWith(1);
+    expect(given.playOnSonos).not.toHaveBeenCalled();
+    expect(given.transfer).not.toHaveBeenCalled();
+    expect(getKioskSonosLeader()).toBeNull();
     groups = [group('Bath', 'Kitchen'), group('Office')];
+    streaming = ['Bath', 'Kitchen'];
     await seconds(3);
     expect(result.current.saving).toBe(false);
-    expect(result.current.dirty).toBe(false);
     expect(result.current.error).toBeNull();
+    expect(result.current.confirmed).toEqual({ family: 'tablet', outputs: [], rooms: ['Bath', 'Kitchen'] });
+    expect(result.current.alongRoom).toBe('Bath');
+    expect(result.current.playingOn).toEqual({ speakers: 2 });
+  });
+
+  it('hands the music over to the rooms when this tablet is unticked', async () => {
+    groups = [group('Bath', 'Kitchen'), group('Office')];
+    streaming = ['Bath', 'Kitchen'];
+    const given = options();
+    const { result } = renderHook(() => useSpeakerSelection(given));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    act(() => result.current.toggle('tablet'));
+    expect(result.current.shown).toEqual({ family: 'sonos', rooms: ['Bath', 'Kitchen'] });
+    act(() => {
+      void result.current.save();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(airplay.routeAudio).toHaveBeenCalledWith([], false);
+    expect(given.playOnSonos).toHaveBeenCalledWith('Bath');
+    expect(getKioskSonosLeader()).toBe('Bath');
+  });
+
+  it('pauses the rooms playing along when every one is taken out', async () => {
+    groups = [group('Kitchen'), group('Office')];
+    streaming = ['Kitchen'];
+    const given = options();
+    const { result } = renderHook(() => useSpeakerSelection(given));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    act(() => result.current.toggle('sonos:Kitchen'));
+    expect(result.current.shown).toEqual({ family: 'tablet', outputs: [], rooms: [] });
+    act(() => {
+      void result.current.save();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(airplay.routeAudio).toHaveBeenCalledWith([], false);
+    expect(pi.controlSonos).toHaveBeenCalledWith('Kitchen', 'pause');
   });
 
   it('adds rooms before taking any out, and follows the group when its leading room leaves', async () => {

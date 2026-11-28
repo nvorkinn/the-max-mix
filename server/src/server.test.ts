@@ -285,11 +285,18 @@ const NOW = { playing: true, positionMs: 1000, track: null, next: [], volume: 20
 const fail = () => Promise.reject(new SonosError('Sonos: no speakers answered.'));
 const resolved = () => Promise.resolve();
 
+const getStreaming = async (base: string) =>
+  (await fetch(`${base}/sonos/stream`, { headers: { Origin: ORIGIN } })).json() as Promise<unknown>;
+// eslint-disable-next-line sonarjs/no-clear-text-protocols -- the speakers fetch the stream over plain http on the home network
+const STREAM_URL = 'http://192.0.2.7:6330/tablet.flac';
+
 function sonosFake(isAnswering: boolean): SonosOperations {
   if (!isAnswering) {
     return {
       groups: fail,
       play: resolved,
+      stream: resolved,
+      streaming: fail,
       upNext: fail,
       now: fail,
       control: resolved,
@@ -303,6 +310,8 @@ function sonosFake(isAnswering: boolean): SonosOperations {
   return {
     groups: () => Promise.resolve([{ id: 'RINCON_K:1', rooms: [{ id: 'RINCON_K', name: 'Kitchen' }] }]),
     play: resolved,
+    stream: resolved,
+    streaming: url => Promise.resolve(url === STREAM_URL ? ['Kitchen', 'Bathroom'] : []),
     upNext: () => Promise.resolve([]),
     now: () => Promise.resolve(NOW),
     control: resolved,
@@ -511,6 +520,17 @@ describe('POST', () => {
     const broken = await post(base, '/sonos/play', { body: { room: 'Broken', uri } });
     await expect(broken.json()).resolves.toEqual({ error: 'Sonos did not do that.' });
     expect(played.map(request => request.room)).toEqual(['Kitchen', 'Attic', 'Broken']);
+  });
+
+  it("lists the rooms that play the tablet's stream, and starts one on it", async () => {
+    const { deps, played } = fakes();
+    await expect(getStreaming(await start({ ...deps, streamUrl: () => STREAM_URL }))).resolves.toEqual({
+      rooms: ['Kitchen', 'Bathroom']
+    });
+    const offline = await start({ ...deps, streamUrl: () => null });
+    await expect(getStreaming(offline)).resolves.toEqual({ rooms: [] });
+    expect((await post(offline, '/sonos/stream', { body: { room: 'Kitchen' } })).status).toBe(204);
+    expect(played).toEqual([{ kind: 'stream', room: 'Kitchen' }]);
   });
 
   it('says when the speakers do not answer, and refuses the old test calls', async () => {

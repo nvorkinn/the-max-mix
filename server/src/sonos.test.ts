@@ -9,6 +9,8 @@ function operations(): SonosOperations {
   return {
     groups: vi.fn(() => Promise.resolve([])),
     play: vi.fn(() => Promise.resolve()),
+    stream: vi.fn(() => Promise.resolve()),
+    streaming: vi.fn(() => Promise.resolve([])),
     upNext: vi.fn(() => Promise.resolve(['spotify:track:0000000000000000000009'])),
     now: vi.fn(() => Promise.reject(new Error('no room called Attic on this network.'))),
     control: vi.fn(() => Promise.resolve()),
@@ -119,6 +121,20 @@ describe('runSonosRequest', () => {
     expect(console.info).toHaveBeenCalledWith(
       `sonos: playing ${URI} on Arc Ultra, 1 songs after it from Kitchen's queue`
     );
+  });
+
+  it("plays the tablet's stream, and says so when the Pi has no address for it", async () => {
+    const fake = operations();
+    vi.spyOn(console, 'info').mockReturnValue();
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the speakers fetch the stream over plain http on the home network
+    const url = 'http://192.0.2.7:6330/tablet.flac';
+    await runSonosRequest({ kind: 'stream', room: 'Kitchen' }, fake, () => url);
+    expect(fake.stream).toHaveBeenCalledWith('Kitchen', url);
+    await expect(runSonosRequest({ kind: 'stream', room: 'Kitchen' }, fake)).rejects.toThrow(
+      'The Pi is not on the home network.'
+    );
+    expect(parseSonosRequest('stream', { room: 'Kitchen' })).toEqual({ kind: 'stream', room: 'Kitchen' });
+    expect(parseSonosRequest('stream', { room: '' })).toBeNull();
   });
 
   it('rejects with a reason safe to show', async () => {

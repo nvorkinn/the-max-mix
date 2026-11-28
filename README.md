@@ -242,15 +242,26 @@ playback state and controls, not the browser player's local state.
 
 On the kiosk, the Speakers drawer lists the Sonos rooms on the home network under Spotify Connect, found by the Pi
 (`server/src/sonos.ts`) with the [sonos-ts](https://sonos-ts.svrooij.io) library. Spotify will not move its playback
-to a Sonos, so tapping a room has the Pi start the song on screen there, from the point it had reached and with Spotify's
-queue after it, through the Spotify account linked in the Sonos app. While that group plays, tapping another room adds it to the group; tapping a room in the group again takes it out,
-and taking out the last one pauses it. The change shows at once, and the drawer reads the rooms again until Sonos shows
-it too. From then on the tablet shows the group's song, progress and artwork and sends its controls (play, pause, skip,
-seek, volume, and music picked in Choose music) to the group through the Pi (`web/src/hooks/useSonosPlayer.ts`), until
-another speaker is picked, which pauses the Sonos. The Pi follows the speakers' own events (on port 6329 on the home
-network), so a song change, pause, volume change or regrouping, from the kiosk or the Sonos app, shows on the tablet
-straight away. A room is turned down to 25% before music starts on it, if it was
-louder. There is no Sonos sign-in: everything stays on the home network, so Sonos is listed on the kiosk only.
+to a Sonos, so there are two ways to play on one.
+
+Ticking rooms keeps This tablet ticked: the tablet stays Spotify's player (so a phone sees it playing and can control
+it), and the rooms play along with it. The Pi routes the tablet's sound to a sink of its own as well and serves it to
+the rooms as a FLAC stream (`server/src/tablet-stream.ts`); the first room ticked fetches it and Sonos keeps the others
+in time, about 1.5 seconds behind the tablet. Spotify's volume goes to full when the rooms start, and the tablet's
+volume slider then moves the rooms' volume. Taking every room out pauses them.
+
+Unticking This tablet while rooms are ticked hands the music over to them instead: the Pi starts the song on screen
+there, from the point it had reached and with Spotify's queue after it, through the Spotify account linked in the Sonos
+app, and the tablet lets go of Spotify. While that group plays, tapping another room adds it to the group; tapping a
+room in the group again takes it out, and taking out the last one pauses it. The change shows at once, and the drawer
+reads the rooms again until Sonos shows it too. From then on the tablet shows the group's song, progress and artwork and
+sends its controls (play, pause, skip, seek, volume, and music picked in Choose music) to the group through the Pi
+(`web/src/hooks/useSonosPlayer.ts`), until another speaker is picked, which pauses the Sonos. The Pi follows the
+speakers' own events (on port 6329 on the home network), so a song change, pause, volume change or regrouping, from the
+kiosk or the Sonos app, shows on the tablet straight away.
+
+Either way, a room is turned down to 25% before music starts on it, if it was louder. There is no Sonos sign-in:
+everything stays on the home network, so Sonos is listed on the kiosk only.
 
 ## Raspberry Pi kiosk
 

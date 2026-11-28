@@ -204,6 +204,24 @@ export function playOnSonosRoom(
   return post('/sonos/play', body, 'This song can’t be played on Sonos.');
 }
 
+/**
+ * Makes the room's group play this tablet's own sound, which the Pi streams to it (server/src/tablet-stream.ts), so the
+ * rooms play along while Spotify still plays on this tablet. The tablet's sound must go to TABLET_SINK for it.
+ */
+export function streamToSonos(room: string): Promise<void> {
+  return post('/sonos/stream', { room });
+}
+
+/** The Pi's sink for the Sonos rooms that play along with this tablet; routing the tablet's sound there feeds them. */
+export const TABLET_SINK = 'kiosk_sonos';
+
+/** The rooms that play this tablet's sound now, each group's leading room first. */
+export async function getStreamingRooms(): Promise<string[]> {
+  const response = await ask('/sonos/stream', {}, 'Sonos can’t say what plays there.');
+  const rooms = record(await response.json())['rooms'];
+  return Array.isArray(rooms) ? rooms.filter((room): room is string => typeof room === 'string') : [];
+}
+
 /** Plays, pauses, skips or (to positionMs) seeks on the room's group. */
 export function controlSonos(room: string, action: SonosAction, positionMs = 0): Promise<void> {
   return post('/sonos/control', { room, action, ...(action === 'seek' && { positionMs: Math.round(positionMs) }) });
