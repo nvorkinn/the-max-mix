@@ -11,7 +11,7 @@ export const DIM_AFTER_MS = 5 * 60_000;
 /** How long the screen stays on untouched during quiet hours, on any tab. */
 export const QUIET_SLEEP_MS = 60_000;
 /** How long a screen with a backlight stays bright untouched during quiet hours, before it dims for the rest of that minute. */
-export const QUIET_DIM_MS = 10_000;
+export const QUIET_DIM_MS = 5000;
 
 const START_ASLEEP_KEY = 'maxmix.startAsleep';
 

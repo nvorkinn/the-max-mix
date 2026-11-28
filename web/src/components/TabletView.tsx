@@ -28,7 +28,13 @@ import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
-import { BRIGHTNESS_MAX, brightnessOf, dimmedBrightness, setBacklight } from '../utils/backlight';
+import {
+  BRIGHTNESS_MAX,
+  brightnessOf,
+  dimmedBrightness,
+  QUIET_DIMMED_BRIGHTNESS,
+  setBacklight
+} from '../utils/backlight';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
 import { setLyricsStyle } from '../utils/lyricsStyle';
@@ -229,7 +235,8 @@ export default function TabletView() {
 
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
-  // minute after the last touch, on any tab, and a screen with a backlight fades down ten seconds after the touch.
+  // minute after the last touch, on any tab, and a screen with a backlight fades all the way down five seconds after
+  // the touch.
   // A kiosk that starts with no network opens on Settings › Wi-Fi, and stays there (rather than going idle to the
   // Dashboard) until it is on one, joined there or back by itself; then it goes to the Dashboard.
   const needsWifi = useWifiAtStart(onKiosk, {
@@ -343,12 +350,13 @@ export default function TabletView() {
     if (display) deviceConfig.save('display', { ...display, brightness: percent });
   };
   const kioskUpdate = useKioskUpdate(onKiosk);
+  const quiet = isQuietTime(quietHours, new Date(minute * 60_000));
   const sleep = useScreenSleep({
     enabled: onKiosk,
     keepAwake: isPlaying || isPhoneSetup,
     onDashboard: screen === 'dashboard',
     sleepMs: screenSleepMinutes === 0 ? null : screenSleepMinutes * 60_000,
-    quiet: isQuietTime(quietHours, new Date(minute * 60_000)),
+    quiet,
     backlit: hasBacklight
   });
   // Waking the screen checks the update channel again for a newer version: someone is back, and hours may have passed.
@@ -365,9 +373,10 @@ export default function TabletView() {
     setSlowPolling(sleep.asleep || followingSonos);
     setSonosSlowPolling(sleep.asleep);
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
-  // The backlight follows the setting, faded down while the screen is dimmed. Asleep, the Pi turns the output off, and
-  // waking sets the backlight again, at once.
-  const backlight = sleep.dimmed ? dimmedBrightness(brightness) : brightness;
+  // The backlight follows the setting, faded down while the screen is dimmed (all the way down in quiet hours). Asleep,
+  // the Pi turns the output off, and waking sets the backlight again, at once.
+  let backlight = brightness;
+  if (sleep.dimmed) backlight = quiet ? QUIET_DIMMED_BRIGHTNESS : dimmedBrightness(brightness);
   useEffect(() => {
     if (hasBacklight && !sleep.asleep) setBacklight(backlight, sleep.dimmed);
   }, [hasBacklight, backlight, sleep.asleep, sleep.dimmed]);
