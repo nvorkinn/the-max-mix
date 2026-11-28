@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "export-phone-drawings": "node scripts/export-phone-drawings.ts"
   },
   "dependencies": {
     "hls.js": "^1.7.4",

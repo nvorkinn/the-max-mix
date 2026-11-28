@@ -30,5 +30,5 @@
     "types": ["vite/client", "node"],
     "paths": { "countdown-api": ["../vendor/countdown-api/src/countdown_api/store.d.ts"] }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "../vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/*.ts", "vite.config.ts", "../vitest.config.ts"]
 }
