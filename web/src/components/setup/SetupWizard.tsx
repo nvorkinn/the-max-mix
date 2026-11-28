@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AudioLines, Bluetooth, Check, KeyRound, LoaderCircle, MapPin, UserRound, Wifi } from 'lucide-react';
+import type { SetupStep, SpotifySignIn as ServerSignIn } from 'countdown-api';
+import { loadDeviceConfig } from '../../countdown/config';
 import {
   deviceCredentials,
   deviceSecret,
-  finishLocation,
   finishSetup,
-  isLocationSet,
+  forgetSetupVerifier,
   pairingPageUrl,
   pairingToken
 } from '../../countdown/registration';
 import { countdownServer } from '../../countdown/server';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
-import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
+import { usePhoneSignIn, useSetupSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
+import { useSetupStatus } from '../../hooks/useSetupStatus';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { useLanguage } from '../../i18n/language';
@@ -36,18 +38,29 @@ import type { ReadNetwork } from '../settings/WifiScanView';
 import WifiSettings from '../settings/WifiSettings';
 import OpenBluetooth from './OpenBluetooth';
 import PickInSpotify from './PickInSpotify';
-import SetupLocation from './SetupLocation';
 import ShareWifiCode from './ShareWifiCode';
 import { useRegistration } from './useRegistration';
-import { useSetupLocation } from './useSetupLocation';
 
 /** How often the Wi-Fi chapter asks the Pi which network it is on, so it moves on once the Pi has joined one. */
 export const NETWORK_POLL_MS = 3000;
 /** The kiosk counts as off its network once it has said so this many times running: one answer may be a blip. */
 const LOST_AFTER = 2;
+/** How long Done waits for the server to hear that the setup is finished before it opens the app anyway. */
+export const FINISH_REPORT_MS = 2000;
 
 const CHAPTERS = ['wifi', 'account', 'spotify', 'soloist', 'location', 'presence'] as const;
 type Chapter = (typeof CHAPTERS)[number];
+
+/** The chapter each of the server's steps is on: Soloist's key and its sign-in share one, and `done` ends the last. */
+const STEP_CHAPTERS: Record<SetupStep, Chapter> = {
+  account: 'account',
+  spotify: 'spotify',
+  soloist_key: 'soloist',
+  soloist_sign_in: 'soloist',
+  location: 'location',
+  presence: 'presence',
+  done: 'presence'
+};
 
 const CHAPTER_ICONS: Record<Chapter, ReactNode> = {
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -88,18 +101,61 @@ function useSetupAddress(): string | null {
   return address;
 }
 
+const signedIn = () => {
+  // The first person is signed in, so the verifier kept for it since the kiosk registered has done its work.
+  forgetSetupVerifier();
+  reloadPage();
+};
+
 /**
- * Starts the Spotify sign-in that the owner's phone is sent on to once the kiosk is theirs (countdown-server's
- * /device/setup), and finishes it here when the phone is back. Its own QR code isn't shown: the setup code covers it.
+ * On a server that doesn't follow the setup: starts the Spotify sign-in that the owner's phone is sent on to once the
+ * kiosk is theirs (countdown-server's /device/setup), and finishes it here when the phone is back. Its own QR code
+ * isn't shown: the setup code covers it.
  */
-function SpotifySignIn({ onSignedIn }: Readonly<{ onSignedIn: () => void }>) {
-  usePhoneSignIn(onSignedIn);
+function SpotifySignIn() {
+  usePhoneSignIn(signedIn);
   return null;
 }
 
 /**
- * A chapter done on the phone, which was sent on to it from the one before (Spotify, the Soloist key): what happens
- * there, and that the kiosk is waiting. The setup code is not shown again, as if it had to be scanned again; it is
+ * On a server that follows the setup: finishes the sign-in the server made for the phone from the challenge the kiosk
+ * reported (useSetupSignIn), once the setup's status names it.
+ */
+function FollowedSignIn({ signIn }: Readonly<{ signIn: ServerSignIn | undefined }>) {
+  useSetupSignIn(signIn, reloadPage);
+  return null;
+}
+
+/** The end of the setup: the owner's face when there is one, that it is complete, and Done. */
+function Complete({ person, onDone }: Readonly<{ person: PersonOnKiosk | undefined; onDone: () => void }>) {
+  const t = useT();
+  return (
+    <div className="setup-wizard-center">
+      {person && (
+        <div className="pair-phone-face">
+          <PersonFace name={person.name} imageUrl={person.imageUrl} className="pair-phone-face-picture" />
+          <Check className="pair-phone-face-tick" aria-hidden="true" />
+        </div>
+      )}
+      <p className="setup-wizard-complete">{t('setup.complete')}</p>
+      <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onDone}>
+        {t('common.done')}
+      </button>
+    </div>
+  );
+}
+
+function Waiting() {
+  return (
+    <div className="setup-wizard-center">
+      <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
+    </div>
+  );
+}
+
+/**
+ * A chapter done on the phone, which was sent on to it from the one before (Spotify, the Soloist key, Location): what
+ * happens there, and that the kiosk is waiting. The setup code is not shown again, as if it had to be scanned again; it is
  * behind a small line at the bottom, for whoever lost the page on their phone.
  */
 function OnPhone({ lead, address }: Readonly<{ lead: string; address: string | null }>) {
@@ -128,13 +184,7 @@ function OnPhone({ lead, address }: Readonly<{ lead: string; address: string | n
  */
 function SpotifyPick({ device }: Readonly<{ device: string | null }>) {
   const t = useT();
-  if (device === null) {
-    return (
-      <div className="setup-wizard-center">
-        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
-      </div>
-    );
-  }
+  if (device === null) return <Waiting />;
   const [before = '', after = ''] = t('setup.pick_in_spotify', { device: DEVICE_MARK }).split(DEVICE_MARK);
   return (
     <div className="setup-wizard-center setup-wizard-pick">
@@ -178,14 +228,8 @@ function WifiByCamera({
   const language = useLanguage();
   const [step, setStep] = useState<'show' | 'scan' | 'other'>('show');
   const [joining, setJoining] = useState<{ isJoined: boolean; error?: string }>({ isJoined: false });
-  if (scanned?.isConfirmed) {
-    // Continue is tapped; the Pi may still be getting its address.
-    return (
-      <div className="setup-wizard-center">
-        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
-      </div>
-    );
-  }
+  // Continue is tapped; the Pi may still be getting its address.
+  if (scanned?.isConfirmed) return <Waiting />;
   if (scanned) {
     return (
       <div className="setup-wizard-center">
@@ -257,20 +301,7 @@ function Presence({
   useEffect(() => {
     if (justPaired) onPaired();
   }, [justPaired, onPaired]);
-  if (isPaired) {
-    return (
-      <div className="setup-wizard-center">
-        <div className="pair-phone-face">
-          <PersonFace name={person.name} imageUrl={person.imageUrl} className="pair-phone-face-picture" />
-          <Check className="pair-phone-face-tick" aria-hidden="true" />
-        </div>
-        <p className="setup-wizard-complete">{t('setup.complete')}</p>
-        <button type="button" className="button search-dialog-confirm setup-wizard-button" onClick={onDone}>
-          {t('common.done')}
-        </button>
-      </div>
-    );
-  }
+  if (isPaired) return <Complete person={person} onDone={onDone} />;
   if (!isLooking) {
     return (
       <div className="setup-wizard-center">
@@ -316,23 +347,30 @@ function Presence({
  *
  * - Wi-Fi: on a kiosk with a camera, showing it the QR code a phone shares its network with; otherwise, or from the
  *   line under that, every way to join a network (Settings › Wi-Fi's page). It moves on once the Pi is on one.
- *   Setup comes back to it if the kiosk loses its network before Location is done.
- * - Account, Spotify and Soloist share one QR code, of countdown-server's pairing page. The owner scans it once, on
- *   Account; Spotify and Soloist only say what happens on the phone, with the code behind a line for whoever lost the
- *   page (OnPhone). Once it is scanned, their phone goes through all three (countdown-server's /device/setup): signing in to Countdown makes the kiosk
- *   theirs, then Spotify signs them in, then they save their Soloist key. Meanwhile the kiosk registers and waits for
- *   an owner, then starts the Spotify sign-in, then asks for the key code, and ticks each chapter as it lands.
+ *   Setup comes back to it if the kiosk loses its network before Presence.
+ * - Account, Spotify, Soloist and Location share one QR code, of countdown-server's pairing page. The owner scans it
+ *   once, on Account; the others only say what happens on the phone, with the code behind a line for whoever lost the
+ *   page (OnPhone). Their phone then goes through all of them: signing in to Countdown makes the kiosk theirs, then
+ *   Spotify signs them in, then they save their Soloist key, then they say where the kiosk is.
  * - Soloist has a second page: the key only starts it, and it signs in to their Spotify account the first time they
- *   pick the kiosk in Spotify's device list on their phone. The chapter is ticked once Soloist says it is signed in.
- *   Having got there, the chapter says so, and Location opens at Continue.
- * - Location: the postcode, from up to ten found near the kiosk or typed, which sets the notice board and the weather,
- *   then the stops near it for the Countdown, none ticked until tapped (SetupLocation). Where the kiosk is was found in
- *   the background since it became someone's and got online (useSetupLocation), from the Wi-Fi networks the Pi sees,
- *   with the stops near there, so the owner seldom waits for it. Skip leaves all of it for Settings.
+ *   pick the kiosk in Spotify's device list on their phone.
+ * - Location is done on the phone alone, which knows where it is: the postcode, which sets the notice board and the
+ *   weather, and the stops near it for the Countdown, or Skip, which leaves all of it for Settings.
  * - Presence: the phone is paired over Bluetooth, the scan starting only once they have Bluetooth open and tap OK.
  *
- * Pairing and signing in reload the page, so every chapter's state is read from what the kiosk keeps. Done marks the
- * setup finished and opens the app.
+ * The kiosk and the phone show the same step, because both ask countdown-server where the setup stands
+ * (useSetupStatus): once someone owns the kiosk, the chapter is the server's step, and the kiosk tells the server what
+ * only it knows (what its Soloist is called and that it has signed in, that the phone is paired, that Done was
+ * tapped). On Spotify the server makes the sign-in itself, from the challenge the kiosk reported when it registered,
+ * and the kiosk finishes it with the verifier it kept (useSetupSignIn), then asks for the person's Soloist key code,
+ * which is what moves the step on. Wi-Fi stays the kiosk's own business, as the phone has no part in it.
+ *
+ * A server that doesn't follow setups (one from before it did) leaves the kiosk to go by what it knows itself, as it
+ * always did: it starts the Spotify sign-in, ticks each chapter as it lands, and says that Soloist is set up before
+ * Presence opens at Continue. There is then no Location chapter: the owner sets that in Settings.
+ *
+ * Pairing and signing in reload the page, so every chapter's state is read from what the kiosk keeps and what the
+ * server says. Done marks the setup finished and opens the app.
  */
 export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFinished?: () => void }>) {
   const t = useT();
@@ -400,45 +438,86 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   const [phonePaired, setPhonePaired] = useState(person !== undefined && person.phoneAddress !== '');
   const markPaired = useCallback(() => setPhonePaired(true), []);
   const address = useSetupAddress();
-  const [locationDone, setLocationDone] = useState(isLocationSet);
-  // Found in the background from the moment the kiosk is someone's and online, while the owner is busy on their phone.
-  const location = useSetupLocation(registered && wifiDone && !locationDone);
-  const finishLocationChapter = useCallback(() => {
-    finishLocation();
-    setLocationDone(true);
-  }, []);
 
-  const done: Record<Chapter, boolean> = {
-    wifi: wifiDone,
-    account: registered,
-    spotify: person !== undefined,
-    soloist: isSoloistSet && !isSayingSoloistSet,
-    location: locationDone,
-    presence: phonePaired
-  };
-  // Account, Spotify, Soloist and Location all happen over the network. Off it, they would wait for ever, so setup goes
-  // back to the Wi-Fi chapter, and picks up where it was once the kiosk is on a network again. Presence needs none.
-  if (wifiDone && missed >= LOST_AFTER && !(done.account && done.spotify && done.soloist && done.location)) {
+  // Where the setup stands on the server, which the owner's phone shows too. Before anyone owns the kiosk both are on
+  // Account, whatever the server follows, so the kiosk's own word is enough until then.
+  const { status, report } = useSetupStatus(wifiDone);
+  const isFollowed = status !== undefined && status !== null;
+  const step = registered ? status?.step : undefined;
+  // Owned, and the server hasn't yet said whether it follows the setup: nothing to show but that the kiosk is waiting.
+  const isAsking = registered && status === undefined;
+  const chapters = status === null ? CHAPTERS.filter(chapter => chapter !== 'location') : CHAPTERS;
+
+  let current: Chapter;
+  let done: Record<Chapter, boolean>;
+  let needsNetwork: boolean;
+  if (step) {
+    const at = step === 'done' ? CHAPTERS.length : CHAPTERS.indexOf(STEP_CHAPTERS[step]);
+    const isDone = (chapter: Chapter) => (chapter === 'wifi' ? wifiDone : CHAPTERS.indexOf(chapter) < at);
+    done = {
+      wifi: isDone('wifi'),
+      account: isDone('account'),
+      spotify: isDone('spotify'),
+      soloist: isDone('soloist'),
+      location: isDone('location'),
+      presence: isDone('presence')
+    };
+    current = wifiDone ? STEP_CHAPTERS[step] : 'wifi';
+    needsNetwork = step !== 'presence' && step !== 'done';
+  } else {
+    done = {
+      wifi: wifiDone,
+      account: registered,
+      spotify: person !== undefined,
+      soloist: isSoloistSet && !isSayingSoloistSet,
+      location: true,
+      presence: phonePaired
+    };
+    current = chapters.find(chapter => !done[chapter]) ?? 'presence';
+    needsNetwork = isAsking || !(done.account && done.spotify && done.soloist);
+  }
+  // Everything before Presence happens over the network. Off it, the chapters would wait for ever, so setup goes back
+  // to the Wi-Fi chapter, and picks up where it was once the kiosk is on a network again. Presence needs none.
+  if (wifiDone && needsNetwork && missed >= LOST_AFTER) {
     setWifiDone(false);
     setScanned(null);
   }
-  const current = CHAPTERS.find(chapter => !done[chapter]) ?? 'presence';
   useRegistration(wifiDone && !registered, reloadPage);
 
-  const finish = () => {
+  // What only the kiosk knows of its setup, told to a server that follows it as each thing comes to be so.
+  const soloistDevice = soloist.deviceName ? soloist.deviceName.slice(0, 64) : undefined;
+  useEffect(() => {
+    if (!isFollowed || !registered) return;
+    const facts = {
+      ...(soloistDevice && { soloist_device: soloistDevice }),
+      ...(soloistSignedIn && { soloist_signed_in: true }),
+      ...(phonePaired && { phone_paired: true })
+    };
+    if (Object.keys(facts).length > 0) void report(facts);
+  }, [isFollowed, registered, soloistDevice, soloistSignedIn, phonePaired, report]);
+
+  // Location was saved, or skipped, on the phone: the kiosk gets its config again, so the app opens with the postcode,
+  // the weather's place and the stops that were chosen.
+  const isPastLocation = step === 'presence' || step === 'done';
+  useEffect(() => {
+    if (isPastLocation) void loadDeviceConfig();
+  }, [isPastLocation]);
+
+  const finish = async () => {
     // The sign-in left word to offer pairing their phone, which this has done.
     takePhoneToPair();
     finishSetup();
+    // The server is told, so the phone says so too; Done opens the app whether or not it hears.
+    if (isFollowed) {
+      await Promise.race([report({ finished: true }), new Promise(resolve => setTimeout(resolve, FINISH_REPORT_MS))]);
+    }
     onFinished();
   };
+  const onDone = () => void finish();
 
   let page: ReactNode;
   if (current === 'wifi' && hasKioskCamera === undefined) {
-    page = (
-      <div className="setup-wizard-center">
-        <LoaderCircle className="w-10 h-10 animate-spin text-accent" aria-hidden="true" />
-      </div>
-    );
+    page = <Waiting />;
   } else if (current === 'wifi') {
     page = hasKioskCamera ? (
       <WifiByCamera
@@ -453,11 +532,16 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
     ) : (
       <WifiSettings wifi={wifi} onJoined={recheckWifi} />
     );
+  } else if (isAsking) {
+    page = <Waiting />;
   } else if (current === 'location') {
-    page = <SetupLocation found={location} onDone={finishLocationChapter} />;
+    page = <OnPhone lead={t('setup.location_on_phone')} address={address} />;
   } else if (current === 'presence' && person) {
-    page = <Presence person={person} isPaired={phonePaired} onPaired={markPaired} onDone={finish} />;
-  } else if (current === 'soloist' && isSayingSoloistSet) {
+    page = <Presence person={person} isPaired={phonePaired || step === 'done'} onPaired={markPaired} onDone={onDone} />;
+  } else if (current === 'presence') {
+    // Nobody is signed in on this kiosk to pair a phone for (its storage was cleared since): there is only Done left.
+    page = <Complete person={undefined} onDone={onDone} />;
+  } else if (current === 'soloist' && step === undefined && isSayingSoloistSet) {
     page = (
       <div className="setup-wizard-center">
         <div className="wifi-join-progress">
@@ -477,7 +561,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
         </div>
       </div>
     );
-  } else if (current === 'soloist' && key === 'saved') {
+  } else if (current === 'soloist' && (step === 'soloist_sign_in' || (step === undefined && key === 'saved'))) {
     page = <SpotifyPick device={soloist.isSignedIn === false ? (soloist.deviceName ?? KIOSK_NAME) : null} />;
   } else if (current === 'account') {
     page = (
@@ -493,7 +577,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
   } else {
     page = (
       <>
-        {current === 'spotify' && <SpotifySignIn onSignedIn={reloadPage} />}
+        {current === 'spotify' && (step ? <FollowedSignIn signIn={status?.spotify_sign_in} /> : <SpotifySignIn />)}
         <OnPhone lead={t(current === 'soloist' ? 'setup.soloist' : 'setup.spotify_on_phone')} address={address} />
       </>
     );
@@ -537,7 +621,7 @@ export default function SetupWizard({ onFinished = reloadPage }: Readonly<{ onFi
             <span className="setup-wizard-name">The Max Mix.</span>
           </div>
           <ol className="settings-nav-list">
-            {CHAPTERS.map(chapter => (
+            {chapters.map(chapter => (
               <li
                 key={chapter}
                 aria-current={chapter === current ? 'step' : undefined}

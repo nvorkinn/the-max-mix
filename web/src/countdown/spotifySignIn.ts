@@ -51,7 +51,7 @@ export async function startPhoneSignIn(client: Client, site: string, signal: Abo
  */
 export async function phoneSignInReply(
   client: Client,
-  signIn: PhoneSignIn,
+  signIn: Pick<PhoneSignIn, 'id' | 'redirectUri'>,
   signal: AbortSignal
 ): Promise<'waiting' | 'gone' | PhoneReply | null> {
   try {

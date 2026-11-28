@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import type { SpotifySignIn } from 'countdown-api';
 import { serverClient } from '../countdown/config';
+import { forgetSetupVerifier, setupVerifier } from '../countdown/registration';
 import { countdownServer } from '../countdown/server';
 import { phoneSignInReply, startPhoneSignIn } from '../countdown/spotifySignIn';
 import type { PhoneSignIn } from '../countdown/spotifySignIn';
@@ -82,4 +84,49 @@ export function usePhoneSignIn(onSignedIn: () => void, as = ''): PhoneSignInStat
   }, [as]);
 
   return serverClient() && countdownServer() ? state : { code: 'unavailable', error: null };
+}
+
+/**
+ * The first person's sign-in during setup, on a server that follows the setup: the server made `signIn` itself, from
+ * the challenge the kiosk reported when it registered, and sent the owner's phone to Spotify with it. The kiosk asks
+ * for its result every couple of seconds, exchanges Spotify's code with the verifier it kept, forgets the verifier and
+ * calls `onSignedIn`. A sign-in that failed, lapsed or couldn't be finished is left alone: the phone is offered to try
+ * again, and the setup's status then names a new one.
+ */
+export function useSetupSignIn(signIn: SpotifySignIn | undefined, onSignedIn: () => void): void {
+  const onSignedInRef = useRef(onSignedIn);
+  useEffect(() => {
+    onSignedInRef.current = onSignedIn;
+  }, [onSignedIn]);
+  const id = signIn?.id;
+  const redirectUri = signIn?.redirect_uri;
+
+  useEffect(() => {
+    const client = serverClient();
+    const verifier = setupVerifier();
+    if (!client || !verifier || !id || !redirectUri) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    // A function, so each await's check reads the signal again rather than what an earlier check narrowed it to.
+    const stopped = () => signal.aborted;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ask = async () => {
+      const reply = await phoneSignInReply(client, { id, redirectUri }, signal);
+      if (stopped()) return;
+      if (reply === null || reply === 'waiting') {
+        timer = setTimeout(() => void ask(), PHONE_SIGN_IN_POLL_MS);
+        return;
+      }
+      if (reply === 'gone') return;
+      const result = await finishSignIn(reply, verifier);
+      if (stopped() || !result.ok) return;
+      forgetSetupVerifier();
+      onSignedInRef.current();
+    };
+    void ask();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [id, redirectUri]);
 }

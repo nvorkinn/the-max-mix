@@ -36,6 +36,7 @@ export const AREAS: Area[] = [
       /^web\/src\/hooks\/useDeviceConfig/,
       /^web\/src\/components\/setup\//,
       /^web\/src\/hooks\/useSoloistSignIn/,
+      /^web\/src\/hooks\/(useSetupStatus|usePhoneSignIn)/,
       /^web\/src\/spotify\/soloistSignIn/,
       /^\.env\.(production|development)$/
     ]

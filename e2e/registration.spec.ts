@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
-import { DEVICE_CONFIGS, fakeCountdownServer, locate, LOCATED } from './fake-countdown.ts';
+import { DEVICE_CONFIGS, fakeCountdownServer, fakeSetup, SPOTIFY_REDIRECT } from './fake-countdown.ts';
 import { fakeSignedOutSoloist } from './fake-soloist.ts';
 import { PIXEL } from './fake-spotify.ts';
 
@@ -9,8 +9,10 @@ const API = 'https://api.countdown.build';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-  'Access-Control-Allow-Methods': 'GET, POST'
+  'Access-Control-Allow-Methods': 'GET, POST, PUT'
 };
+const SETUP = `${API}/api/devices/setup`;
+const CODE = 'QR code to set up this screen on your phone';
 
 /**
  * Stands in for countdown-server's device registration (POST /api/devices/register) and its account route, which
@@ -88,13 +90,38 @@ async function expectOnScreen(page: Page, elements: Locator[]) {
 
 const PHONE = { address: '1C:3C:78:F2:61:1D', name: 'Max’s iPhone' };
 
-/** The Wi-Fi networks the Pi sees (GET /location/scan), as its service answers: countdown-api's example request's. */
-const ACCESS_POINTS = locate.locate_request.wifi_access_points.map(point => ({
-  macAddress: point.mac_address,
-  signalStrength: point.signal_strength,
-  ...(point.channel !== undefined && { channel: point.channel }),
-  ...(point.age !== undefined && { age: point.age })
-}));
+/** Spotify's own answers to the kiosk: the tokens for a code, and whose they are. Returns each token request's form. */
+async function fakeSpotifyAccount(page: Page) {
+  const exchanges: URLSearchParams[] = [];
+  await page.route('https://accounts.spotify.com/api/token', route => {
+    exchanges.push(new URLSearchParams(route.request().postData() ?? ''));
+    return route.fulfill({ json: { access_token: 'a', refresh_token: 'r', expires_in: 3600 } });
+  });
+  await page.route('https://api.spotify.com/v1/me', route =>
+    route.fulfill({ json: { id: 'max', display_name: 'Max', images: [] } })
+  );
+  return exchanges;
+}
+
+/** Pairs the phone on Presence: the scan only starts once they have Bluetooth open and tap OK. Ends on Done. */
+async function pairPhone(page: Page, bluetooth: Awaited<ReturnType<typeof fakePhonePairing>>, shot: Shot) {
+  await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Open Settings, then Bluetooth, on your phone, and tap OK.')).toBeVisible();
+  await shot('6-presence');
+  expect(bluetooth.asked).toEqual([]);
+  bluetooth.report.pairing = { state: 'scanning', secondsLeft: 100, nearby: [PHONE] };
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.getByRole('button', { name: PHONE.name })).toBeVisible();
+  expect(bluetooth.asked).toContain('/bluetooth/pair-phone');
+  await shot('6b-presence-scanning');
+  await page.getByRole('button', { name: PHONE.name }).click();
+  bluetooth.report.pairing = { state: 'paired', name: PHONE.name, address: PHONE.address };
+  await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+  await expect(page.getByText('Setup complete')).toBeVisible();
+  await shot('7-done');
+}
+
+type Shot = (name: string) => Promise<void>;
 
 test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () => {
   // A kiosk that has never registered (the other tests start set up: see playwright.config.ts).
@@ -112,27 +139,31 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       route.fulfill({ json: { networks: [{ ssid: 'Home', signal: 80, security: 'WPA2', known: false }] } })
     );
     await page.route('http://127.0.0.1:7341/soloist/**', route => route.fulfill({ json: { state: 'playing' } }));
-    await page.route('http://127.0.0.1:7341/location/scan', route =>
-      route.fulfill({ json: { accessPoints: ACCESS_POINTS } })
-    );
   });
 
   for (const size of [
     { width: 1280, height: 800 },
     { width: 1024, height: 600 }
   ]) {
-    test(`walks through every chapter from one QR code at ${size.width}x${size.height}`, async ({ page }, testInfo) => {
+    test(`walks through every chapter in step with the phone at ${size.width}x${size.height}`, async ({
+      page
+    }, testInfo) => {
       await page.setViewportSize(size);
-      const shot = async (name: string) =>
-        testInfo.attach(`setup-${name}-${size.width}x${size.height}`, {
+      const shot: Shot = async name => {
+        await testInfo.attach(`setup-${name}-${size.width}x${size.height}`, {
           body: await page.screenshot(),
           contentType: 'image/png'
         });
+      };
       let isOnline = false;
       await page.route('http://127.0.0.1:7341/wifi/status', route =>
         route.fulfill({ json: isOnline ? { ssid: 'Home', address: 'kiosk.local' } : { ssid: null, address: null } })
       );
       const server = await fakePairing(page);
+      // The rest of the server, once someone owns the kiosk.
+      const rest: { server?: Awaited<ReturnType<typeof fakeCountdownServer>> } = {};
+      const setup = await fakeSetup(page, rest);
+      const exchanges = await fakeSpotifyAccount(page);
       await page.goto('/?kiosk=1');
       // The welcome says what is coming, and Start opens the chapters.
       await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
@@ -141,149 +172,177 @@ test.describe('A new kiosk’s first-time setup', { tag: '@registration' }, () =
       const chapters = page.getByRole('navigation', { name: 'Set up this screen' }).getByRole('listitem');
       await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Location', 'Presence']);
 
-      // Wi-Fi: nothing registers on no network, and it moves on by itself once the Pi has joined one.
+      // Wi-Fi: nothing registers or reports on no network, and it moves on by itself once the Pi has joined one.
       await expect(page.getByRole('region', { name: 'Wi-Fi' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Next' })).toHaveCount(0);
       await shot('1-wifi');
       expect(server.registrations).toHaveLength(0);
+      expect(setup.reports).toHaveLength(0);
       isOnline = true;
 
-      // One QR code from here on. The kiosk registers and waits for its owner.
-      const code = page.getByRole('img', { name: 'QR code to set up this screen on your phone' });
+      // One QR code from here on. The kiosk registers, tells the server what its first person's Spotify sign-in asks
+      // for (the challenge of a verifier it keeps), and waits for its owner.
+      const code = page.getByRole('img', { name: CODE });
       await expect(page.getByRole('region', { name: 'Account' })).toBeVisible();
       await expect(code).toBeVisible();
       await expect.poll(() => server.accountAuthorizations.length).toBeGreaterThan(0);
       expect(server.registrations[0]).toMatchObject({ type: 'touchscreen', width: 1280, height: 800 });
+      await expect.poll(() => setup.reports.length).toBeGreaterThan(0);
+      const verifier = await page.evaluate(() => localStorage.getItem('maxmix.setupVerifier'));
+      expect(verifier).toMatch(/^[\w-]{43,128}$/);
+      const challenge = setup.reports[0]?.spotify?.code_challenge;
+      expect(challenge).toMatch(/^[\w-]{43}$/);
+      expect(setup.reports[0]?.spotify?.scope).toContain('user-read-playback-state');
+      expect(setup.step()).toBe('account');
       await shot('2-account');
 
-      // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to.
+      // Paired on the phone: both are on Spotify. The kiosk starts no sign-in of its own, and the same verifier is
+      // still there after the page reloaded.
       const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+      rest.server = owned;
       server.pair();
+      setup.phone.pair();
       await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
       // The phone was sent on, so the code is not shown again, only what happens there.
       await expect(page.getByText('Sign in to Spotify on your phone.')).toBeVisible();
       await expect(code).toHaveCount(0);
-      await expect.poll(() => owned.spotifySignIns.started.length).toBe(1);
       await shot('3-spotify');
-      await page.route('https://accounts.spotify.com/api/token', route =>
-        route.fulfill({ json: { access_token: 'a', refresh_token: 'r', expires_in: 3600 } })
-      );
-      await page.route('https://api.spotify.com/v1/me', route =>
-        route.fulfill({ json: { id: 'max', display_name: 'Max', images: [] } })
-      );
-      owned.spotifySignIns.phoneComesBack({ code: 'the-code' });
-
-      // Signed in: the phone goes on to the Soloist key.
+      // The server makes the sign-in when the phone gets there, and the kiosk finishes it once the phone is back from
+      // Spotify, with the verifier it kept and where Spotify sent the phone.
       const soloist = await fakeSignedOutSoloist(page);
+      setup.phone.goesToSpotify();
+      setup.phone.comesBackFromSpotify({ code: 'the-code' });
+
+      // Signed in: the kiosk asks for the Soloist key code at once, which moves both on to the key.
       await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
+      await expect(page.getByText('Soloist needs an API key from you.')).toBeVisible();
+      expect(owned.spotifySignIns.started).toHaveLength(0);
+      expect(exchanges).toHaveLength(1);
+      expect(exchanges[0]?.get('code')).toBe('the-code');
+      expect(exchanges[0]?.get('code_verifier')).toBe(verifier);
+      expect(exchanges[0]?.get('redirect_uri')).toBe(SPOTIFY_REDIRECT);
+      expect(setup.reports.every(report => report.spotify?.code_challenge === challenge)).toBe(true);
+      expect(await page.evaluate(() => localStorage.getItem('maxmix.setupVerifier'))).toBeNull();
+      expect(owned.soloistCodes).toContain('max');
       await expect(code).toHaveCount(0);
       await shot('4-soloist');
       // Whoever lost the page on their phone can have the code back.
       await page.getByRole('button', { name: 'Lost the page on your phone? Show the code again' }).click();
       await expect(code).toBeVisible();
-      owned.soloistKeys.add('max');
+      setup.phone.savesKey('max');
 
-      // The key starts Soloist, which signs in once they pick the kiosk in Spotify on their phone: the chapter waits.
+      // The key starts Soloist, which signs in once they pick the kiosk in Spotify on their phone. The server is told
+      // what Soloist is called, for the phone to say which device to pick.
       await expect(page.getByText('pick The Max Mix 1 in the device list')).toBeVisible({ timeout: 15_000 });
       await expect(code).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
+      await expect.poll(() => setup.reports.some(report => report.soloist_device === 'The Max Mix 1')).toBe(true);
       await shot('4b-spotify-pick');
       soloist.signIn();
-      // The chapter says that Soloist is set up, and Presence opens at Continue.
-      await expect(page.getByText('Soloist is set up and signed in to Spotify.')).toBeVisible({ timeout: 10_000 });
-      await shot('4c-soloist-set');
 
-      // Location: where the kiosk is was found in the background, from the Wi-Fi networks the Pi sees, while the owner
-      // was on their phone, and the stops near it with it. The nearest postcode is the large one, the other nine under it.
-      await page.getByRole('button', { name: 'Continue' }).click();
+      // Soloist is signed in, which the kiosk tells the server: both go on to Location, with nothing to tap here.
       await expect(page.getByRole('region', { name: 'Location' })).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByText('Is this your postcode?')).toBeVisible();
-      const nearest = page.getByRole('button', { name: 'SE17 2PU Our best guess' });
-      const others = page.getByRole('list', { name: 'Or one of these nearby?' }).getByRole('button');
-      await expect(nearest).toBeVisible();
-      await expect(others).toHaveText(
-        LOCATED.postcodes
-          .slice(1)
-          .map(near => near.postcode)
-          .toSorted((a, b) => a.localeCompare(b))
-      );
-      await expect(page.getByRole('button', { name: 'Not here? Type it in' })).toBeVisible();
-      expect(owned.located[0]).toEqual(locate.locate_request);
-      const atGoogles = `?latitude=${locate.locate.latitude}&longitude=${locate.locate.longitude}`;
-      expect(owned.near.length).toBeGreaterThan(0);
-      expect(new Set(owned.near)).toEqual(new Set([atGoogles]));
+      expect(setup.reports.some(report => report.soloist_signed_in === true)).toBe(true);
+      const lead = page.getByText('Tell us where the tablet is on your phone');
+      const lost = page.getByRole('button', { name: 'Lost the page on your phone? Show the code again' });
+      await expect(lead).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Skip for now' })).toHaveCount(0);
       await shot('5-location');
-      await expectOnScreen(page, [
-        nearest,
-        ...(await others.all()),
-        page.getByRole('button', { name: 'Skip for now' })
-      ]);
-      expect((await others.first().boundingBox())?.height).toBeGreaterThanOrEqual(56);
+      await expectOnScreen(page, [lead, lost]);
+      await lost.click();
+      await expect(code).toBeVisible();
+      await shot('5b-location-code');
+      await expectOnScreen(page, [lead, code]);
 
-      // A postcode picked is the notice board's, and the weather's place; the stops near it, none ticked, are those
-      // found in the background, with no second ask: three stations and five bus stops at most, side by side.
-      const asked = owned.near.length;
-      await nearest.click();
-      const stations = page.getByRole('region', { name: 'Stations' }).getByRole('button');
-      const busStops = page.getByRole('region', { name: 'Bus stops' }).getByRole('button');
-      await expect(page.getByText('The tablet can show live bus and Tube times')).toBeVisible();
-      await expect(busStops).toHaveCount(5);
-      await expect(stations).toHaveCount(3);
-      await expect(busStops.first()).toContainText('Westmoreland Road');
-      await expect(busStops.first()).toContainText('140 m');
-      await expect(busStops.first()).toHaveAttribute('aria-pressed', 'false');
-      await expect(stations.first()).toContainText('Kennington');
-      expect(owned.near).toHaveLength(asked);
-      expect(owned.saves.at(-2)).toMatchObject({
-        notice_board: { postcode: 'SE17 2PU', country: 'GB', address: null }
-      });
-      expect(owned.saves.at(-1)).toMatchObject({ weather: { location: 'Oslo', key: 'oslo-no-3143244' } });
-      const continueButton = page.getByRole('button', { name: 'Continue' });
-      await shot('5b-location-stops');
-      await expectOnScreen(page, [...(await stations.all()), ...(await busStops.all()), continueButton]);
-      await busStops.first().click();
-      await stations.first().click();
-      await expect(busStops.first()).toHaveAttribute('aria-pressed', 'true');
-      await shot('5c-location-stops-picked');
-
-      // What was set, and that Settings changes it.
-      await continueButton.click();
-      await expect(page.getByText('You’re all set!')).toBeVisible();
-      await expect(page.getByText('2 stops')).toBeVisible();
-      expect(owned.saves.at(-1)).toMatchObject({
-        arrivals: {
-          stops: [
-            { source: 'tfl', id: '490014501K' },
-            { source: 'tfl', id: '940GZZLUKNG' }
-          ],
-          group_by_route: false
-        }
-      });
-      await shot('5d-location-set');
-
-      // Presence: the scan only starts once they have Bluetooth open and tap OK.
+      // Location is saved (or skipped) on the phone, and the kiosk gets its config again.
       const bluetooth = await fakePhonePairing(page);
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(page.getByRole('region', { name: 'Presence' })).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByText('Open Settings, then Bluetooth, on your phone, and tap OK.')).toBeVisible();
-      await shot('5-presence');
-      expect(bluetooth.asked).toEqual([]);
-      bluetooth.report.pairing = { state: 'scanning', secondsLeft: 100, nearby: [PHONE] };
-      await page.getByRole('button', { name: 'OK' }).click();
-      await expect(page.getByRole('button', { name: PHONE.name })).toBeVisible();
-      expect(bluetooth.asked).toContain('/bluetooth/pair-phone');
-      await shot('6-presence-scanning');
-      await page.getByRole('button', { name: PHONE.name }).click();
-      bluetooth.report.pairing = { state: 'paired', name: PHONE.name, address: PHONE.address };
-      await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
-      await expect(page.getByText('Setup complete')).toBeVisible();
-      await shot('7-done');
+      if (size.width === 1280) {
+        setup.phone.savesLocation({ notice_board: { postcode: 'SE17 2PU', country: 'GB', address: null } });
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('maxmix.deviceConfig'))).toContain('SE17 2PU');
+      } else {
+        setup.phone.skipsLocation();
+      }
 
-      // Done opens the app, and the next start doesn't come back to the wizard.
+      // Presence, which the server hears of once the phone is paired.
+      await pairPhone(page, bluetooth, shot);
+      await expect.poll(() => setup.step()).toBe('done');
+      await expect(chapters).toHaveClass(Array.from({ length: 6 }, () => /is-done/));
+
+      // Done tells the server, opens the app, and the next start doesn't come back to the wizard.
       await page.getByRole('button', { name: 'Done' }).click();
       await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+      expect(setup.reports).toContainEqual({ finished: true });
       expect(await page.evaluate(() => localStorage.getItem('maxmix.setupDone'))).toBe('1');
-      expect(await page.evaluate(() => localStorage.getItem('maxmix.setupLocationDone'))).toBe('1');
     });
   }
+
+  test('goes by itself, with no Location chapter, on a server that does not follow setups', async ({
+    page
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const shot: Shot = async name => {
+      await testInfo.attach(`setup-unfollowed-${name}-1280x800`, {
+        body: await page.screenshot(),
+        contentType: 'image/png'
+      });
+    };
+    await page.route('http://127.0.0.1:7341/wifi/status', route =>
+      route.fulfill({ json: { ssid: 'Home', address: 'kiosk.local' } })
+    );
+    const server = await fakePairing(page);
+    // The server as it is before it follows setups: no such route, so 404 for the preflight of a call with the
+    // secret too, which fails that call in the browser as the network would (Playwright answers a preflight itself,
+    // so the call is failed here). Only an ask with nothing to preflight is answered: 404.
+    const setupAsks: string[] = [];
+    await page.route(SETUP, route => {
+      const request = route.request();
+      const hasSecret = request.headers()['authorization'] !== undefined;
+      setupAsks.push(`${request.method()}${hasSecret ? ' with the secret' : ''}`);
+      return hasSecret
+        ? route.abort('failed')
+        : route.fulfill({ status: 404, headers: CORS, contentType: 'text/html', body: 'Not Found' });
+    });
+    await fakeSpotifyAccount(page);
+    await page.goto('/?kiosk=1');
+    await page.getByRole('button', { name: 'Start' }).click();
+    const chapters = page.getByRole('navigation', { name: 'Set up this screen' }).getByRole('listitem');
+    const code = page.getByRole('img', { name: CODE });
+    await expect(page.getByRole('region', { name: 'Account' })).toBeVisible();
+    await expect(code).toBeVisible();
+    // Once the server has turned the setup's routes down, Location is gone: it is set in Settings.
+    await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Presence']);
+    expect(setupAsks).toContain('GET');
+    await expect.poll(() => server.accountAuthorizations.length).toBeGreaterThan(0);
+    await shot('2-account');
+
+    // Paired on the phone: the kiosk starts the Spotify sign-in the phone goes on to.
+    const owned = await fakeCountdownServer(page, DEVICE_CONFIGS.owned);
+    server.pair();
+    await expect(page.getByRole('region', { name: 'Spotify' })).toBeVisible();
+    await expect(page.getByText('Sign in to Spotify on your phone.')).toBeVisible();
+    await expect(chapters).toHaveText(['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Presence']);
+    await expect(code).toHaveCount(0);
+    await expect.poll(() => owned.spotifySignIns.started.length).toBe(1);
+    owned.spotifySignIns.phoneComesBack({ code: 'the-code' });
+
+    // Signed in: the phone goes on to the Soloist key.
+    const soloist = await fakeSignedOutSoloist(page);
+    await expect(page.getByRole('region', { name: 'Soloist' })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.setupVerifier'))).toBeNull();
+    owned.soloistKeys.add('max');
+    await expect(page.getByText('pick The Max Mix 1 in the device list')).toBeVisible({ timeout: 15_000 });
+    soloist.signIn();
+    // The chapter says that Soloist is set up, and Presence opens at Continue.
+    await expect(page.getByText('Soloist is set up and signed in to Spotify.')).toBeVisible({ timeout: 10_000 });
+    await shot('4c-soloist-set');
+    const bluetooth = await fakePhonePairing(page);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await pairPhone(page, bluetooth, shot);
+    await expect(page.getByRole('region', { name: 'Location' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Dashboard' })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('maxmix.setupDone'))).toBe('1');
+  });
 });

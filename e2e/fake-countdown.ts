@@ -1,6 +1,6 @@
-// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN GELEPHCS Effra Southwrk Lambeth TIMS
+// cspell:ignore GZZLUEAC GZZLUBOR GZZLULBN Effra Southwrk Lambeth TIMS
 import { readFileSync } from 'node:fs';
-import type { Page, Request } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json', import.meta.url), 'utf8')
@@ -9,49 +9,6 @@ const fixture = JSON.parse(
 const search = JSON.parse(
   readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/search.json', import.meta.url), 'utf8')
 ) as { stops_query: string; stops: object[]; places_query: string; places: object[]; here: object[] };
-
-/** countdown-api's example answers to the setup wizard's location routes. */
-export const locate = JSON.parse(
-  readFileSync(new URL('../vendor/countdown-api/src/countdown_api/fixtures/locate.json', import.meta.url), 'utf8')
-) as {
-  locate_request: {
-    wifi_access_points: { mac_address: string; signal_strength: number; channel?: number; age?: number }[];
-  };
-  locate: { latitude: number; longitude: number; postcodes: { postcode: string }[] };
-  postcode: object;
-  stops_near: { distance: number }[];
-};
-
-/** A made-up stop near countdown-api's example position, in the shape stopsNear answers. */
-function stopNear(id: string, name: string, mode: string, letter: string, lines: string[], distance: number) {
-  const subtitle = letter ? `Stop ${letter} • ${lines.join(', ')}` : lines.join(', ');
-  const value = { source: 'tfl', id };
-  return { id, name, subtitle, indent: false, value, source: 'tfl', area: 'London', mode, letter, lines, distance };
-}
-
-/**
- * What the fake server's location routes answer: countdown-api's example, with made-up postcodes and stops near it to
- * fill the wizard's pages to the most they show (ten postcodes, three stations and five bus stops) and more.
- */
-export const LOCATED = {
-  ...locate.locate,
-  postcodes: [
-    ...locate.locate.postcodes,
-    ...['SE17 2AA', 'SE17 2BB', 'SE17 2DD', 'SE17 2EE', 'SE17 2FF'].map((postcode, index) => ({
-      ...locate.locate.postcodes[0],
-      postcode,
-      distance: 40 + index * 10
-    }))
-  ]
-};
-const STOPS_NEAR = [
-  ...locate.stops_near,
-  stopNear('490000000P', 'Albany Road', 'bus', 'P', ['12', '35', '40', '45', '68', '148', '171', '176', 'N68'], 300),
-  stopNear('490000000N', 'East Street', 'bus', 'N', ['42', '343'], 320),
-  stopNear('490000000S', 'Thurlow Street', 'bus', 'S', ['42', '136'], 410),
-  stopNear('910GELEPHCS', 'Elephant & Castle Rail Station', 'rail', '', ['Thameslink', 'Southeastern'], 1250),
-  stopNear('940GZZLUBOR', 'Borough Underground Station', 'tube', '', ['Northern'], 1500)
-].toSorted((a, b) => a.distance - b.distance);
 
 const panels = JSON.parse(
   readFileSync(
@@ -124,11 +81,6 @@ const WEATHER = {
   }
 };
 
-/** A request's query string, as the location routes' fakes record it. */
-function queryOf(request: Request): string {
-  return new URL(request.url()).search;
-}
-
 /** The CORS headers the real server sends the app's origin on its screens' API. */
 function corsFor(origin = '*') {
   return {
@@ -140,10 +92,10 @@ function corsFor(origin = '*') {
 }
 
 /**
- * The people's Soloist keys: none saved until a test adds some to the set it returns, a code for anyone, and a key
- * forgotten when asked. Refused, as the config is, while nobody owns the kiosk. Never a key: the page never asks for one.
+ * The people's Soloist keys: none saved until a test adds some to the set it returns, a code for anyone (`codes` gets
+ * who each was asked for), and a key forgotten when asked. Refused, as the config is, while nobody owns the kiosk. Never a key: the page never asks for one.
  */
-async function fakeSoloistKeys(page: Page, isOwned: () => boolean): Promise<Set<string>> {
+async function fakeSoloistKeys(page: Page, isOwned: () => boolean, codes: string[]): Promise<Set<string>> {
   const soloistKeys = new Set<string>();
   await page.route(`${SOLOIST}/**`, route => {
     const request = route.request();
@@ -152,6 +104,7 @@ async function fakeSoloistKeys(page: Page, isOwned: () => boolean): Promise<Set<
     if (!isOwned()) return route.fulfill({ status: 401, headers: cors });
     const path = new URL(request.url()).pathname;
     if (path === '/api/devices/soloist/codes' && request.method() === 'POST') {
+      codes.push((request.postDataJSON() as { person: string }).person);
       return route.fulfill({
         status: 201,
         headers: cors,
@@ -179,26 +132,29 @@ async function fakeSoloistKeys(page: Page, isOwned: () => boolean): Promise<Set<
 /**
  * The Spotify sign-ins the kiosk hands to phones: a new one each time it asks, waiting until a test has the phone come
  * back (`phoneComesBack`, for the newest one), then answered once. Answered whoever owns the kiosk, as the real server
- * answers any touchscreen. `started` is each request's body, so a test sees the challenge the kiosk sent.
+ * answers any touchscreen. `started` is each request's body, so a test sees the challenge the kiosk sent. `make` is a
+ * sign-in the server makes itself, as it does during a setup it follows (fakeSetup), with no request from the kiosk.
  */
 async function fakeSpotifySignIns(page: Page) {
   /** What a phone that scanned the kiosk's code brings back from Spotify: its code, or its error. */
   type PhoneReply = { code: string } | { error: string };
   const started: Record<string, unknown>[] = [];
   const replies = new Map<string, PhoneReply | null>();
+  let made = 0;
+  let newest = '';
+  const make = () => {
+    made += 1;
+    newest = String(made).padStart(32, '0');
+    replies.set(newest, null);
+    return { id: newest, redirect_uri: SPOTIFY_REDIRECT, expires_in: 600 };
+  };
   await page.route(`${SPOTIFY_SIGN_INS}**`, route => {
     const request = route.request();
     const cors = { ...corsFor(request.headers()['origin']), 'Access-Control-Allow-Methods': 'GET, POST' };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (request.method() === 'POST') {
       started.push(request.postDataJSON() as Record<string, unknown>);
-      const id = String(started.length).padStart(32, '0');
-      replies.set(id, null);
-      return route.fulfill({
-        status: 201,
-        headers: cors,
-        json: { id, redirect_uri: SPOTIFY_REDIRECT, expires_in: 600 }
-      });
+      return route.fulfill({ status: 201, headers: cors, json: make() });
     }
     const id = new URL(request.url()).pathname.split('/').at(-1) ?? '';
     if (!replies.has(id)) return route.fulfill({ status: 404, headers: cors });
@@ -213,8 +169,8 @@ async function fakeSpotifySignIns(page: Page) {
   });
   return {
     started,
+    make,
     phoneComesBack: (reply: PhoneReply) => {
-      const newest = String(started.length).padStart(32, '0');
       if (replies.has(newest)) replies.set(newest, reply);
     }
   };
@@ -227,9 +183,9 @@ async function fakeSpotifySignIns(page: Page) {
  * save changes. A save of a section (PUT /api/devices/config/{section}) with the version as If-Match is answered with the
  * whole config, the section replaced; one with an older version is a 409; and every save is `saveStatus` with no body
  * when a test gives one. Returns the Authorization header of each request, the whole config each save made, and the
- * people with a Soloist key saved, which a test may add to, and the Spotify sign-ins handed to phones. The setup
- * wizard's location routes answer countdown-api's example (locate.json) for anything asked; what each was asked is
- * returned too (`located`: the bodies POSTed to /api/devices/locate; `postcodes`, `near`: the query strings).
+ * people with a Soloist key saved, which a test may add to (and `soloistCodes`: who a key code was asked for), and the
+ * Spotify sign-ins handed to phones. `change` is a change made elsewhere, as on the settings site: sections of the
+ * config replaced, with a new version.
  */
 export async function fakeCountdownServer(
   page: Page,
@@ -354,35 +310,107 @@ export async function fakeCountdownServer(
       body: JSON.stringify(panels.arrivals)
     });
   });
-  // The setup wizard's location routes: countdown-api's example, whatever is asked.
-  const located: unknown[] = [];
-  const postcodes: string[] = [];
-  const near: string[] = [];
-  const locationRoutes = [
-    [`${API}/api/devices/locate`, LOCATED, located, (request: Request) => request.postDataJSON() as unknown],
-    [`${API}/api/postcodes/lookup?*`, locate.postcode, postcodes, queryOf],
-    [`${API}/api/stops/near?*`, STOPS_NEAR, near, queryOf]
-  ] as const;
-  await Promise.all(
-    locationRoutes.map(([url, answer, asked, what]) =>
-      page.route(url, route => {
-        const request = route.request();
-        const cors = { ...corsFor(request.headers()['origin']), 'Access-Control-Allow-Methods': 'GET, POST' };
-        if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
-        if (current === null) return route.fulfill({ status: 401, headers: cors });
-        (asked as unknown[]).push(what(request));
-        return route.fulfill({
-          status: 200,
-          headers: cors,
-          contentType: 'application/json',
-          body: JSON.stringify(answer)
-        });
-      })
-    )
-  );
-  const soloistKeys = await fakeSoloistKeys(page, () => current !== null);
+  const soloistCodes: string[] = [];
+  const soloistKeys = await fakeSoloistKeys(page, () => current !== null, soloistCodes);
   const spotifySignIns = await fakeSpotifySignIns(page);
-  return { authorizations, saves, soloistKeys, spotifySignIns, located, postcodes, near };
+  const change = (sections: Record<string, unknown>) => {
+    current = { ...current, ...sections };
+    version += 1;
+  };
+  return { authorizations, saves, soloistKeys, soloistCodes, spotifySignIns, change };
+}
+
+/** What a touchscreen reports of its own setup (countdown-api's SetupReport). */
+interface SetupReport {
+  spotify?: { client_id: string; code_challenge: string; scope: string };
+  soloist_device?: string;
+  soloist_signed_in?: boolean;
+  phone_paired?: boolean;
+  finished?: boolean;
+}
+
+/**
+ * Stands in for countdown-server's following of a touchscreen's setup (GET and PUT /api/devices/setup), which the
+ * kiosk and its owner's phone both ask so they show the same step. As on the real server, a kiosk that has never
+ * reported has no status (404), a report replaces only the fields it sends, and the step is the first not done:
+ * `account` until someone owns the kiosk, `spotify` until a Soloist key code or key exists for it, `soloist_key`
+ * until a key is saved, `soloist_sign_in` until the kiosk reports its Soloist signed in, `location` until the owner
+ * saves or skips it on the phone, `presence` until the kiosk reports the phone paired, then `done` (at once when it
+ * reports `finished`).
+ *
+ * `rest.server` is the rest of the fake server (fakeCountdownServer), once the test has made it: its Soloist keys and key
+ * codes are what the step is read from, and its Spotify sign-ins are where the phone's sign-in is made. `phone` is
+ * what the owner does on their phone, each a page of countdown-server's there. `reports` is every report the kiosk
+ * sent.
+ */
+export async function fakeSetup(page: Page, rest: { server?: Awaited<ReturnType<typeof fakeCountdownServer>> }) {
+  const server = () => rest.server;
+  const reports: SetupReport[] = [];
+  let reported: SetupReport | null = null;
+  let isOwned = false;
+  let isLocationDone = false;
+  let signIn: { id: string; redirect_uri: string; expires_in: number } | undefined;
+  const step = () => {
+    if (reported?.finished) return 'done';
+    if (!isOwned) return 'account';
+    const keys = server()?.soloistKeys.size ?? 0;
+    const codes = server()?.soloistCodes.length ?? 0;
+    if (keys === 0 && codes === 0) return 'spotify';
+    if (keys === 0) return 'soloist_key';
+    if (!reported?.soloist_signed_in) return 'soloist_sign_in';
+    if (!isLocationDone) return 'location';
+    return reported.phone_paired ? 'done' : 'presence';
+  };
+  const status = () => ({
+    step: step(),
+    ...(step() === 'spotify' && signIn && { spotify_sign_in: signIn }),
+    ...(reported?.soloist_device !== undefined && { soloist_device: reported.soloist_device })
+  });
+  await page.route(`${API}/api/devices/setup`, route => {
+    const request = route.request();
+    const cors = corsFor(request.headers()['origin']);
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (request.method() === 'PUT') {
+      const report = request.postDataJSON() as SetupReport;
+      reports.push(report);
+      reported = { ...reported, ...report };
+    }
+    return route.fulfill(
+      reported === null ? { status: 404, headers: cors } : { status: 200, headers: cors, json: status() }
+    );
+  });
+  return {
+    reports,
+    step,
+    phone: {
+      /** Scans the kiosk's code and signs in to Countdown: the kiosk is theirs. */
+      pair: () => {
+        isOwned = true;
+      },
+      /** Is sent on to Spotify, with a sign-in the server makes from the challenge the kiosk reported. */
+      goesToSpotify: () => {
+        if (!reported?.spotify) throw new Error('The kiosk has reported no Spotify challenge to make a sign-in from.');
+        signIn = server()?.spotifySignIns.make();
+      },
+      /** Comes back from Spotify with its code, or its error. */
+      comesBackFromSpotify: (reply: { code: string } | { error: string }) => {
+        server()?.spotifySignIns.phoneComesBack(reply);
+      },
+      /** Saves their Soloist key, on the page of the code the kiosk asked for. */
+      savesKey: (person: string) => {
+        server()?.soloistKeys.add(person);
+      },
+      /** Picks a postcode and stops on the Location pages, which the server saves to the kiosk's config. */
+      savesLocation: (sections: Record<string, unknown>) => {
+        server()?.change(sections);
+        isLocationDone = true;
+      },
+      /** Taps Skip for now on the Location page. */
+      skipsLocation: () => {
+        isLocationDone = true;
+      }
+    }
+  };
 }
 
 /**
