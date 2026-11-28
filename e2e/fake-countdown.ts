@@ -44,7 +44,7 @@ export const LOCATED = {
     }))
   ]
 };
-export const STOPS_NEAR = [
+const STOPS_NEAR = [
   ...locate.stops_near,
   stopNear('490000000P', 'Albany Road', 'bus', 'P', ['12', '35', '40', '45', '68', '148', '171', '176', 'N68'], 300),
   stopNear('490000000N', 'East Street', 'bus', 'N', ['42', '343'], 320),
