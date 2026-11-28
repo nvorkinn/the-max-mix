@@ -36,21 +36,30 @@ export interface SessionStore {
 const isText = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= MAX_TOKEN;
 
-/** An https address's origin, or null when it is not one: tokens never go over plain HTTP. */
-export function httpsOrigin(value: unknown): string | null {
+/** The origin of a web address with one of `protocols`, or null when it is not one. */
+function originOf(value: unknown, protocols: readonly string[]): string | null {
   if (typeof value !== 'string') return null;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' ? url.origin : null;
+    return protocols.includes(url.protocol) ? url.origin : null;
   } catch {
     return null;
   }
 }
 
+/** An https address's origin, or null when it is not one: what goes there never goes over plain HTTP. */
+export const httpsOrigin = (value: unknown): string | null => originOf(value, ['https:']);
+
+/**
+ * Home Assistant's origin from its address, or null when it is not a web address. Plain http is taken too: many are
+ * reached that way at home (homeassistant.local:8123), as Home Assistant's own apps reach them.
+ */
+export const homeAssistantOrigin = (value: unknown): string | null => originOf(value, ['https:', 'http:']);
+
 function parseSession(value: unknown): Session | null {
   if (typeof value !== 'object' || value === null) return null;
   const { url, clientId, refreshToken } = value as Record<string, unknown>;
-  const origin = httpsOrigin(url);
+  const origin = homeAssistantOrigin(url);
   return origin !== null && isText(clientId) && isText(refreshToken) ? { url: origin, clientId, refreshToken } : null;
 }
 
@@ -224,7 +233,8 @@ const SUBSCRIPTION_ID = 1;
 export function followEntities(connect: Connect = url => new WebSocket(url)): Follow {
   return (url, accessToken, entityIds, handlers) => {
     const address = new URL('/api/websocket', url);
-    address.protocol = 'wss:';
+    // An http origin becomes ws, an https one wss.
+    address.protocol = address.protocol === 'http:' ? 'ws:' : 'wss:';
     const socket = connect(address.href);
     let isOver = false;
     const end = (why: FollowEnd) => {

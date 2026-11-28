@@ -24,6 +24,11 @@ async function fakeLights(page: Page, status: { state: string; lights: (typeof W
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === '/lights/config') return route.fulfill({ headers: CORS, json: status });
+    if (path === '/lights/sign-in') {
+      asked.push('sign-in');
+      // The login page, which here is the app itself: Home Assistant's would come back to it.
+      return route.fulfill({ headers: CORS, json: { url: `${new URL(page.url()).origin}/?kiosk=1&back=1` } });
+    }
     if (path === '/lights/events') {
       const headers = { ...CORS, 'Content-Type': 'text/event-stream' };
       return route.fulfill({ headers, body: `data: ${JSON.stringify(status)}\n\n` });
@@ -70,11 +75,15 @@ test.describe('Lights', { tag: '@lights' }, () => {
   });
 
   test('says so when the kiosk is not signed in to Home Assistant', async ({ page }) => {
-    await fakeLights(page, { state: 'signed-out', lights: [{ ...WORKTOP }] });
+    const asked = await fakeLights(page, { state: 'signed-out', lights: [{ ...WORKTOP }] });
     await page.getByRole('tab', { name: 'Lights' }).click();
     const panel = page.getByRole('tabpanel', { name: 'Lights' });
     await expect(panel.getByRole('status')).toContainText('not signed in to Home Assistant');
     await expect(panel.getByRole('button', { name: 'Worktop' })).toHaveCount(0);
+    // Sign in leaves the app for the login page the service names.
+    await panel.getByRole('button', { name: 'Sign in to Home Assistant' }).click();
+    await expect(page).toHaveURL(/back=1/);
+    expect(asked).toEqual(['sign-in']);
   });
 
   test('a kiosk without lights has no Lights tab', async ({ page }) => {

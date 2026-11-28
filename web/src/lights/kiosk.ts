@@ -99,6 +99,26 @@ export function watchLights(onStatus: (status: LightsStatus) => void): () => voi
   };
 }
 
+/**
+ * Starts a sign-in to Home Assistant: resolves with the address of its login page, which comes back to the app by
+ * itself once the login is done, or null when the service has none to give.
+ */
+export async function startLightsSignIn(): Promise<string | null> {
+  try {
+    const response = await fetch(`${KIOSK_SERVICE}/lights/sign-in`, { method: 'POST' });
+    if (!response.ok) return null;
+    const { url } = (await response.json()) as { url?: unknown };
+    return typeof url === 'string' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Leaves the app for another page, as for Home Assistant's login, which comes back to the app. */
+export function leaveFor(url: string): void {
+  location.assign(url);
+}
+
 /** Asks the service to turn a light on or off, or on at a brightness (1 to 100 percent). */
 export function setLight(id: string, isOn: boolean, brightness?: number): void {
   kioskPost('/lights/set', { id, on: isOn, ...(brightness !== undefined && { brightness }) });

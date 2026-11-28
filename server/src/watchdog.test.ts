@@ -43,6 +43,18 @@ describe('Watchdog', () => {
     expect(state.logs[0]).toMatch(/No heartbeat/);
   });
 
+  it('waits for an app that said it is away, and restarts one that never comes back', async () => {
+    const { state, watchdog } = setup();
+    watchdog.beat();
+    await watchdog.check();
+    watchdog.away(10 * 60_000);
+    state.now = 10 * 60_000 + STALE_MS - 1;
+    expect(await watchdog.check()).toBe(false);
+    state.now = 10 * 60_000 + STALE_MS;
+    expect(await watchdog.check()).toBe(true);
+    expect(state.stopped).toEqual([100]);
+  });
+
   it('gives a new Chromium the whole wait, and leaves a stopped one alone', async () => {
     const { state, watchdog } = setup();
     await watchdog.check();
