@@ -743,12 +743,7 @@ describe('SettingsPanel', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- left out, as a config from before it has none
     const { holidays: _, ...older } = config;
     rerender(
-      <SettingsPanel
-        {...base}
-        initialSection="notices"
-        deviceConfig={older}
-        onDeviceConfigSave={onDeviceConfigSave}
-      />
+      <SettingsPanel {...base} initialSection="notices" deviceConfig={older} onDeviceConfigSave={onDeviceConfigSave} />
     );
     expect(holidays.getByRole('button', { name: '1 week before' })).toHaveAttribute('aria-pressed', 'true');
   });
