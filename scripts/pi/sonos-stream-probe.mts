@@ -141,10 +141,20 @@ function soloistPorts(): string[] {
     type: string;
     info?: { props?: Record<string, unknown> };
   }[];
+  // Only Soloist's client names the binary; its node carries the client's id (and node.name "spotify").
+  const clients = new Set(
+    dump
+      .filter(
+        entry =>
+          entry.type === 'PipeWire:Interface:Client' &&
+          String(entry.info?.props?.['application.process.binary'] ?? '').includes('soloist')
+      )
+      .map(entry => entry.id)
+  );
   const nodes = dump.filter(
     entry =>
       entry.type === 'PipeWire:Interface:Node' &&
-      String(entry.info?.props?.['application.process.binary'] ?? '').includes('soloist')
+      (clients.has(Number(entry.info?.props?.['client.id'])) || entry.info?.props?.['node.name'] === 'spotify')
   );
   const names = new Set(nodes.map(node => String(node.info?.props?.['node.name'])));
   return run(['pw-link', '--output'])
