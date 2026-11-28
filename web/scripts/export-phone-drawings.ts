@@ -32,7 +32,7 @@ const openBluetooth = await markup('OpenBluetooth');
 await vite.close();
 
 const macros = `{# Made by the-max-mix's web/scripts/export-phone-drawings.ts from its setup wizard's drawings: change them there
-   and run it again rather than editing this file. Each needs static/vendor/the-max-mix/phone_drawings.css. #}
+  and run it again rather than editing this file. Each needs static/vendor/the-max-mix/phone_drawings.css. #}
 {% macro pick_in_spotify(device) -%}
 ${pickInSpotify}
 {%- endmacro %}
