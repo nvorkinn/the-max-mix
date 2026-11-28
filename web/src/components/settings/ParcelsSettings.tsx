@@ -37,8 +37,8 @@ const KEPT_HOURS_CHOICES: readonly Choice<KeptHours>[] = [
 /** How long a delivered parcel stays when the config doesn't say (the server's default). */
 const DEFAULT_KEPT_HOURS: KeptHours = 4;
 
-/** One of the page's choices as chips. */
-function ChoiceSection<T extends number | null>({
+/** One of the parcels' choices as chips, under its own small heading. */
+function ParcelsChoice<T extends number | null>({
   id,
   title,
   choices,
@@ -55,7 +55,10 @@ function ChoiceSection<T extends number | null>({
   // Chips take strings and numbers as their ids; null (any day) goes as 'any'.
   const key = (value: T): string => String(value ?? 'any');
   return (
-    <SettingsSection id={id} title={title}>
+    <section className="settings-group" aria-labelledby={id}>
+      <h6 className="settings-group-title" id={id}>
+        {title}
+      </h6>
       <SettingsChips
         labelledBy={id}
         value={key(selected)}
@@ -65,7 +68,7 @@ function ChoiceSection<T extends number | null>({
         }}
         options={choices.map(choice => ({ id: key(choice.value), label: t(...choice.label) }))}
       />
-    </SettingsSection>
+    </section>
   );
 }
 
@@ -95,10 +98,10 @@ function ParcelsSetup() {
 }
 
 /**
- * The Parcels page: whether the notice board has the owner's Parcel deliveries, which ones by the day they're due, and how
- * long delivered ones stay, as the settings site has them for the e-paper screens. The Parcel key is the owner's account's,
- * on the settings site, so the page shows only once someone owns the kiosk, and each tap saves the whole of it to
- * countdown-server.
+ * The Notices page's Parcels: whether the notice board has the owner's Parcel deliveries (the switch beside the heading),
+ * which ones by the day they're due, and how long delivered ones stay, as the settings site has them for the e-paper
+ * screens. The Parcel key is the owner's account's, on the settings site, so the page shows only once someone owns the
+ * kiosk, and each tap saves the whole of it to countdown-server.
  */
 export default function ParcelsSettings({
   parcels,
@@ -114,31 +117,38 @@ export default function ParcelsSettings({
   onChange: (parcels: Parcels) => void;
 }>) {
   const t = useT();
-  if (!keySaved) return <ParcelsSetup />;
+  if (!keySaved) {
+    return (
+      <SettingsSection id="parcels-label" title={t('parcels.title')}>
+        <ParcelsSetup />
+      </SettingsSection>
+    );
+  }
   // A config from before parcels has none, which is off.
   const current: Parcels = parcels ?? { enabled: false };
   return (
-    <div className="settings-stack">
-      <SettingsToggle
-        id="parcels-enabled-label"
-        title={t('parcels.enabled')}
-        on={current.enabled}
-        onChange={enabled => onChange({ ...current, enabled })}
-      />
-      <ChoiceSection
-        id="parcels-days-ahead-label"
-        title={t('parcels.arriving_by')}
-        choices={DAYS_AHEAD_CHOICES}
-        selected={current.days_ahead ?? null}
-        onSelect={days_ahead => onChange({ ...current, days_ahead })}
-      />
-      <ChoiceSection
-        id="parcels-kept-hours-label"
-        title={t('parcels.delivered_stay')}
-        choices={KEPT_HOURS_CHOICES}
-        selected={current.kept_hours ?? DEFAULT_KEPT_HOURS}
-        onSelect={kept_hours => onChange({ ...current, kept_hours })}
-      />
-    </div>
+    <SettingsToggle
+      id="parcels-label"
+      title={t('parcels.title')}
+      on={current.enabled}
+      onChange={enabled => onChange({ ...current, enabled })}
+    >
+      <div className="parcels-choices">
+        <ParcelsChoice
+          id="parcels-days-ahead-label"
+          title={t('parcels.arriving_by')}
+          choices={DAYS_AHEAD_CHOICES}
+          selected={current.days_ahead ?? null}
+          onSelect={days_ahead => onChange({ ...current, days_ahead })}
+        />
+        <ParcelsChoice
+          id="parcels-kept-hours-label"
+          title={t('parcels.delivered_stay')}
+          choices={KEPT_HOURS_CHOICES}
+          selected={current.kept_hours ?? DEFAULT_KEPT_HOURS}
+          onSelect={kept_hours => onChange({ ...current, kept_hours })}
+        />
+      </div>
+    </SettingsToggle>
   );
 }

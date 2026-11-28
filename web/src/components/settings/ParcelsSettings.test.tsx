@@ -6,7 +6,7 @@ import ParcelsSettings from './ParcelsSettings';
 describe('ParcelsSettings', () => {
   it('has the parcel settings while a Parcel API key is saved', () => {
     render(<ParcelsSettings parcels={{ enabled: true, days_ahead: 1, kept_hours: 4 }} onChange={vi.fn()} />);
-    expect(screen.getByRole('switch', { name: 'Enabled' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Parcels' })).toBeChecked();
     expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('heading', { name: 'Set up Parcel' })).not.toBeInTheDocument();
   });

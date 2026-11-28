@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Check, Info, Monitor, Package, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
+import { Check, Info, Megaphone, Monitor, Palette, SlidersHorizontal, TrainFront, Wifi } from 'lucide-react';
 import type { Parcels, TouchscreenConfig } from 'countdown-api';
 import { DEFAULT_CLOCK_FORMAT } from '../utils/clockFormat';
 import { isKiosk } from '../utils/kiosk';
@@ -17,6 +17,7 @@ import AboutSettings from './settings/AboutSettings';
 import AppearanceSettings from './settings/AppearanceSettings';
 import CountdownSettings from './settings/CountdownSettings';
 import GeneralSettings from './settings/GeneralSettings';
+import HolidaysSettings from './settings/HolidaysSettings';
 import ParcelsSettings from './settings/ParcelsSettings';
 import ScreenSettings from './settings/ScreenSettings';
 import SpotifySettings from './settings/SpotifySettings';
@@ -30,7 +31,7 @@ export type { SettingsSection } from './settings/sections';
 const SECTION_ICONS: Record<SettingsSection, ReactNode> = {
   general: <SlidersHorizontal className="w-6 h-6 shrink-0" aria-hidden="true" />,
   countdown: <TrainFront className="w-6 h-6 shrink-0" aria-hidden="true" />,
-  parcels: <Package className="w-6 h-6 shrink-0" aria-hidden="true" />,
+  notices: <Megaphone className="w-6 h-6 shrink-0" aria-hidden="true" />,
   screen: <Monitor className="w-6 h-6 shrink-0" aria-hidden="true" />,
   appearance: <Palette className="w-6 h-6 shrink-0" aria-hidden="true" />,
   wifi: <Wifi className="w-6 h-6 shrink-0" aria-hidden="true" />,
@@ -94,10 +95,10 @@ function SaveNote({ status }: Readonly<{ status: SaveStatus }>) {
 }
 
 /**
- * The Parcels page, once countdown-server has said whether the owner's account has a Parcel API key: its settings with
- * one, how to set Parcel up without. The config alone can't say, as its parcels are off either way.
+ * The Notices page's Parcels, once countdown-server has said whether the owner's account has a Parcel API key: its
+ * settings with one, how to set Parcel up without. The config alone can't say, as its parcels are off either way.
  */
-function ParcelsPage({
+function ParcelsPart({
   parcels,
   onChange,
   onLinked
@@ -151,7 +152,7 @@ export default function SettingsPanel({
       (choice.id !== 'general' || owned) &&
       (choice.id !== 'screen' || hasSleep) &&
       (choice.id !== 'countdown' || owned) &&
-      (choice.id !== 'parcels' || owned)
+      (choice.id !== 'notices' || owned)
   );
   // Appearance, Spotify and About always show, so there is always a first page.
   const current = sections.find(choice => choice.id === section) ?? sections[0] ?? SETTINGS_SECTIONS[0];
@@ -195,13 +196,19 @@ export default function SettingsPanel({
       );
       break;
     }
-    case 'parcels': {
+    case 'notices': {
       page = deviceConfig && onDeviceConfigSave && (
-        <ParcelsPage
-          parcels={deviceConfig.parcels}
-          onChange={parcels => onDeviceConfigSave('parcels', parcels)}
-          onLinked={onShow}
-        />
+        <div className="settings-stack">
+          <ParcelsPart
+            parcels={deviceConfig.parcels}
+            onChange={parcels => onDeviceConfigSave('parcels', parcels)}
+            onLinked={onShow}
+          />
+          <HolidaysSettings
+            holidays={deviceConfig.holidays}
+            onChange={holidays => onDeviceConfigSave('holidays', holidays)}
+          />
+        </div>
       );
       break;
     }

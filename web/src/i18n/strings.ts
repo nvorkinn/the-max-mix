@@ -9,7 +9,7 @@ export const STRINGS = {
   'settings.title': { en: 'Settings', nb: 'Innstillinger' },
   'settings.general': { en: 'General', nb: 'Generelt' },
   'settings.countdown': { en: 'Countdown', nb: 'Countdown' },
-  'settings.parcels': { en: 'Parcels', nb: 'Pakker' },
+  'settings.notices': { en: 'Notices', nb: 'Oppslag' },
   'settings.screen': { en: 'Screen', nb: 'Skjerm' },
   'settings.appearance': { en: 'Appearance', nb: 'Utseende' },
   'settings.wifi': { en: 'Wi-Fi', nb: 'Wi-Fi' },
@@ -173,7 +173,16 @@ export const STRINGS = {
   'common.continue': { en: 'Continue', nb: 'Fortsett' },
 
   // Settings › Parcels.
-  'parcels.enabled': { en: 'Enabled', nb: 'Aktivert' },
+  'parcels.title': { en: 'Parcels', nb: 'Pakker' },
+  'holidays.title': { en: 'Bank holidays', nb: 'Helligdager' },
+  'holidays.days_before': {
+    en: '{days, plural, one {# day before} other {# days before}}',
+    nb: '{days, plural, one {# dag før} other {# dager før}}'
+  },
+  'holidays.weeks_before': {
+    en: '{weeks, plural, one {# week before} other {# weeks before}}',
+    nb: '{weeks, plural, one {# uke før} other {# uker før}}'
+  },
   'parcels.arriving_by': { en: 'Arriving by', nb: 'Kommer innen' },
   'parcels.today': { en: 'Today', nb: 'I dag' },
   'parcels.tomorrow': { en: 'Tomorrow', nb: 'I morgen' },
