@@ -400,12 +400,12 @@ function streamSonosEvents(request: IncomingMessage, response: ServerResponse, d
 /** GET /sonos/groups, /sonos/now and /sonos/art. */
 async function getSonos(request: IncomingMessage, response: ServerResponse, deps: Deps): Promise<void> {
   const url = new URL(request.url ?? '', LOCAL_ORIGIN);
-  const room = parseRoom(url.searchParams.get('room'));
-  const isGroups = url.pathname === '/sonos/groups';
   if (url.pathname === '/sonos/stream') {
     await getStreaming(response, deps);
     return;
   }
+  const room = parseRoom(url.searchParams.get('room'));
+  const isGroups = url.pathname === '/sonos/groups';
   if (!isGroups && !room) {
     response.writeHead(400).end();
     return;

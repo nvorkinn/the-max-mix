@@ -85,7 +85,7 @@ export class TabletStream {
 
   /** Answers GET or HEAD of STREAM_PATH; anything else is 404. */
   handle(request: IncomingMessage, response: ServerResponse): void {
-    const path = (request.url ?? '').split('?')[0];
+    const path = (request.url ?? '').split('?', 1)[0];
     if (path !== STREAM_PATH || (request.method !== 'GET' && request.method !== 'HEAD')) {
       response.writeHead(404).end();
       return;
@@ -105,6 +105,12 @@ export class TabletStream {
       if (this.listeners.size === 0) this.stop();
     });
     this.run();
+  }
+
+  /** Once a frame's time: when pw-record gave nothing since the last one, a frame of silence keeps the stream going. */
+  tick(): void {
+    if (!this.heard && this.listeners.size > 0) this.send(SILENCE);
+    this.heard = false;
   }
 
   /** Sends one frame of audio to every listener. */
@@ -132,17 +138,16 @@ export class TabletStream {
       if (this.recorder !== recorder) return;
       this.recorder = null;
       // pw-record went away (PipeWire restarted): a new one, while speakers still listen.
-      if (this.listeners.size > 0) setTimeout(() => this.run(), FRAME_MS * 10);
+      if (this.listeners.size === 0) return;
+      setTimeout(() => {
+        this.run();
+      }, FRAME_MS * 10);
     };
     recorder.on('close', ended);
     recorder.on('error', ended);
-    this.timer ??= setInterval(() => this.tick(), FRAME_MS);
-  }
-
-  /** Once a frame's time: when pw-record gave nothing since the last one, a frame of silence keeps the stream going. */
-  tick(): void {
-    if (!this.heard && this.listeners.size > 0) this.send(SILENCE);
-    this.heard = false;
+    this.timer ??= setInterval(() => {
+      this.tick();
+    }, FRAME_MS);
   }
 
   private stop(): void {

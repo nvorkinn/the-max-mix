@@ -126,6 +126,7 @@ describe('runSonosRequest', () => {
   it("plays the tablet's stream, and says so when the Pi has no address for it", async () => {
     const fake = operations();
     vi.spyOn(console, 'info').mockReturnValue();
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the speakers fetch the stream over plain http on the home network
     const url = 'http://192.0.2.7:6330/tablet.flac';
     await runSonosRequest({ kind: 'stream', room: 'Kitchen' }, fake, () => url);
     expect(fake.stream).toHaveBeenCalledWith('Kitchen', url);

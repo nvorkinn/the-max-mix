@@ -1,4 +1,5 @@
 // @vitest-environment node
+/* eslint-disable unicorn/prefer-event-target -- A child process is an EventEmitter, so the stand-in is one. */
 import { EventEmitter } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -44,6 +45,7 @@ async function readAtLeast(reader: ReadableStreamDefaultReader<Uint8Array>, byte
 
 describe('the tablet stream', () => {
   it('says where the speakers find it', () => {
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- the speakers fetch the stream over plain http on the home network
     expect(tabletStreamUrl('192.0.2.7', 6330)).toBe('http://192.0.2.7:6330/tablet.flac');
   });
 

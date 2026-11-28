@@ -2,9 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import { BLOCK, codedNumber, FRAME_BYTES, flacFrame, flacHeader, RATE } from './flac.ts';
 
+const hex = (value: number) => Buffer.from(codedNumber(value)).toString('hex');
+
 describe('FLAC for the tablet stream', () => {
   it('codes frame numbers as FLAC does, like UTF-8', () => {
-    const hex = (value: number) => Buffer.from(codedNumber(value)).toString('hex');
     expect(hex(0x7f)).toBe('7f');
     expect(hex(0x80)).toBe('c280');
     expect(hex(0x8_00)).toBe('e0a080');

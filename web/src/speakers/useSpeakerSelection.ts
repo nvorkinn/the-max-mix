@@ -347,7 +347,7 @@ export function useSpeakerSelection({
   const confirm = async (target: SpeakerChoice): Promise<boolean> => {
     for (let read = 0; read < CONFIRM_READS; read += 1) {
       if (sameChoice(confirmedRef.current, target)) return true;
-      if (target.family === 'sonos' || (target.family === 'tablet' && onKiosk)) void readGroups();
+      if (target.family === 'sonos' || (onKiosk && target.family === 'tablet')) void readGroups();
       if (onKiosk && target.family === 'tablet') void readOutputs();
       // eslint-disable-next-line no-await-in-loop
       await wait(CONFIRM_MS);
@@ -400,7 +400,7 @@ export function useSpeakerSelection({
   else if (confirmed?.family === 'tablet' && confirmed.rooms.length > 0) {
     const [room] = confirmed.rooms;
     playingOn =
-      confirmed.rooms.length === 1 && room !== undefined ? { name: room } : { speakers: confirmed.rooms.length };
+      room !== undefined && confirmed.rooms.length === 1 ? { name: room } : { speakers: confirmed.rooms.length };
   } else if (confirmed?.family === 'tablet') {
     const [only] = confirmed.outputs;
     if (confirmed.outputs.length === 0) playingOn = { tablet: true };

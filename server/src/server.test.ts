@@ -285,6 +285,9 @@ const NOW = { playing: true, positionMs: 1000, track: null, next: [], volume: 20
 const fail = () => Promise.reject(new SonosError('Sonos: no speakers answered.'));
 const resolved = () => Promise.resolve();
 
+const getStreaming = async (base: string) =>
+  (await fetch(`${base}/sonos/stream`, { headers: { Origin: ORIGIN } })).json() as Promise<unknown>;
+// eslint-disable-next-line sonarjs/no-clear-text-protocols -- the speakers fetch the stream over plain http on the home network
 const STREAM_URL = 'http://192.0.2.7:6330/tablet.flac';
 
 function sonosFake(isAnswering: boolean): SonosOperations {
@@ -521,13 +524,11 @@ describe('POST', () => {
 
   it("lists the rooms that play the tablet's stream, and starts one on it", async () => {
     const { deps, played } = fakes();
-    const get = async (base: string) =>
-      (await fetch(`${base}/sonos/stream`, { headers: { Origin: ORIGIN } })).json() as Promise<unknown>;
-    await expect(get(await start({ ...deps, streamUrl: () => STREAM_URL }))).resolves.toEqual({
+    await expect(getStreaming(await start({ ...deps, streamUrl: () => STREAM_URL }))).resolves.toEqual({
       rooms: ['Kitchen', 'Bathroom']
     });
     const offline = await start({ ...deps, streamUrl: () => null });
-    await expect(get(offline)).resolves.toEqual({ rooms: [] });
+    await expect(getStreaming(offline)).resolves.toEqual({ rooms: [] });
     expect((await post(offline, '/sonos/stream', { body: { room: 'Kitchen' } })).status).toBe(204);
     expect(played).toEqual([{ kind: 'stream', room: 'Kitchen' }]);
   });

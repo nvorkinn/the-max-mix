@@ -14,7 +14,7 @@ function crc8(bytes: Uint8Array): number {
   let crc = 0;
   for (const byte of bytes) {
     crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = crc & 0x80 ? ((crc << 1) ^ 0x07) & 0xff : (crc << 1) & 0xff;
+    for (let bit = 0; bit < 8; bit += 1) crc = ((crc << 1) ^ (crc & 0x80 ? 0x07 : 0)) & 0xff;
   }
   return crc;
 }
@@ -24,7 +24,7 @@ function crc16(bytes: Uint8Array): number {
   for (const byte of bytes) {
     crc ^= byte << 8;
     for (let bit = 0; bit < 8; bit += 1) {
-      crc = crc & 0x80_00 ? ((crc << 1) ^ 0x80_05) & 0xff_ff : (crc << 1) & 0xff_ff;
+      crc = ((crc << 1) ^ (crc & 0x80_00 ? 0x80_05 : 0)) & 0xff_ff;
     }
   }
   return crc;
