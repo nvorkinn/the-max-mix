@@ -97,6 +97,8 @@ test.describe('Dashboard motion', { tag: '@layout' }, () => {
     page
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
+    // The Dashboard's own motion: Dynamic's colour fades follow the music, not the Dashboard.
+    await page.addInitScript(() => localStorage.setItem('maxmix.dynamicColour', 'off'));
     await fakeSpotify(page);
     await fakeCountdownServer(page, dashboardConfig());
     // A stream every second, each with what the server knows by then.
