@@ -1144,8 +1144,9 @@ describe('TabletView', () => {
           const fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
           vi.stubGlobal('fetch', fetch);
           renderOnSpotifyTab(<TabletView />);
-          // The config loads first; the screen then dims well before the minute it sleeps at.
-          await act(() => vi.advanceTimersByTimeAsync(4 * QUIET_DIM_MS));
+          // The config loads first, then the screen dims well before the minute it sleeps at.
+          await act(() => vi.advanceTimersByTimeAsync(0));
+          await act(() => vi.advanceTimersByTimeAsync(2 * QUIET_DIM_MS));
           expect(backlights(fetch)).toEqual([80, 1]);
         });
 
