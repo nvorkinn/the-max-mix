@@ -32,7 +32,7 @@ import {
   BRIGHTNESS_MAX,
   brightnessOf,
   dimmedBrightness,
-  QUIET_DIMMED_BRIGHTNESS,
+  quietDimmedBrightness,
   setBacklight
 } from '../utils/backlight';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
@@ -235,7 +235,7 @@ export default function TabletView() {
 
   // Left alone with nothing playing, the kiosk shows the Dashboard, which dims after a while and then sleeps the chosen
   // minutes later (see useScreenSleep). The screen stays on and bright while music plays. In quiet hours it sleeps a
-  // minute after the last touch, on any tab, and a screen with a backlight fades all the way down five seconds after
+  // minute after the last touch, on any tab, and a screen with a backlight fades well down five seconds after
   // the touch.
   // A kiosk that starts with no network opens on Settings › Wi-Fi, and stays there (rather than going idle to the
   // Dashboard) until it is on one, joined there or back by itself; then it goes to the Dashboard.
@@ -373,10 +373,10 @@ export default function TabletView() {
     setSlowPolling(sleep.asleep || followingSonos);
     setSonosSlowPolling(sleep.asleep);
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
-  // The backlight follows the setting, faded down while the screen is dimmed (all the way down in quiet hours). Asleep,
+  // The backlight follows the setting, faded down while the screen is dimmed (further in quiet hours). Asleep,
   // the Pi turns the output off, and waking sets the backlight again, at once.
   let backlight = brightness;
-  if (sleep.dimmed) backlight = quiet ? QUIET_DIMMED_BRIGHTNESS : dimmedBrightness(brightness);
+  if (sleep.dimmed) backlight = quiet ? quietDimmedBrightness(brightness) : dimmedBrightness(brightness);
   useEffect(() => {
     if (hasBacklight && !sleep.asleep) setBacklight(backlight, sleep.dimmed);
   }, [hasBacklight, backlight, sleep.asleep, sleep.dimmed]);

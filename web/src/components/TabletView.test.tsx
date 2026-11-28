@@ -1137,7 +1137,7 @@ describe('TabletView', () => {
           expect(backlights(fetch)).toEqual([80, 24, 80]);
         });
 
-        it('in quiet hours dims all the way down five seconds after the last touch', async () => {
+        it('in quiet hours dims further five seconds after the last touch', async () => {
           vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00') });
           vi.spyOn(deviceConfig, 'loadDeviceConfig').mockResolvedValue({
             ...BACKLIT,
@@ -1149,7 +1149,7 @@ describe('TabletView', () => {
           // The config loads first, then the screen dims well before the minute it sleeps at.
           await act(() => vi.advanceTimersByTimeAsync(0));
           await act(() => vi.advanceTimersByTimeAsync(2 * QUIET_DIM_MS));
-          expect(backlights(fetch)).toEqual([80, 1]);
+          expect(backlights(fetch)).toEqual([80, 8]);
         });
 
         it('keeps quiet hours on the server, and hands it the ones set on the kiosk before', async () => {

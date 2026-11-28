@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { brightnessOf, dimmedBrightness, setBacklight } from './backlight';
+import { brightnessOf, dimmedBrightness, quietDimmedBrightness, setBacklight } from './backlight';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,6 +22,14 @@ describe('dimmedBrightness', () => {
     expect(dimmedBrightness(100)).toBe(30);
     expect(dimmedBrightness(50)).toBe(15);
     expect(dimmedBrightness(1)).toBe(1);
+  });
+});
+
+describe('quietDimmedBrightness', () => {
+  it('is a smaller share of the setting, and never off', () => {
+    expect(quietDimmedBrightness(100)).toBe(10);
+    expect(quietDimmedBrightness(80)).toBe(8);
+    expect(quietDimmedBrightness(10)).toBe(1);
   });
 });
 
