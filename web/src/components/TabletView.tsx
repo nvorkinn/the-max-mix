@@ -28,7 +28,13 @@ import { getSpotifyRetryDelay, recordSpotifyRetryAfter, SpotifyApiError } from '
 import { useSpeakerSelection } from '../speakers/useSpeakerSelection';
 import { isKiosk } from '../utils/kiosk';
 import { debugLog } from '../utils/debugLog';
-import { BRIGHTNESS_MAX, brightnessOf, dimmedBrightness, setBacklight } from '../utils/backlight';
+import {
+  BRIGHTNESS_MAX,
+  brightnessOf,
+  dimmedBrightness,
+  QUIET_DIMMED_BRIGHTNESS,
+  setBacklight
+} from '../utils/backlight';
 import { loadQuietHours, isQuietTime, saveQuietHours } from '../utils/quietHours';
 import type { QuietHours } from '../utils/quietHours';
 import { setLyricsStyle } from '../utils/lyricsStyle';
@@ -369,7 +375,8 @@ export default function TabletView() {
   }, [sleep.asleep, followingSonos, setSlowPolling, setSonosSlowPolling]);
   // The backlight follows the setting, faded down while the screen is dimmed (all the way down in quiet hours). Asleep,
   // the Pi turns the output off, and waking sets the backlight again, at once.
-  const backlight = sleep.dimmed ? dimmedBrightness(brightness, quiet) : brightness;
+  let backlight = brightness;
+  if (sleep.dimmed) backlight = quiet ? QUIET_DIMMED_BRIGHTNESS : dimmedBrightness(brightness);
   useEffect(() => {
     if (hasBacklight && !sleep.asleep) setBacklight(backlight, sleep.dimmed);
   }, [hasBacklight, backlight, sleep.asleep, sleep.dimmed]);
