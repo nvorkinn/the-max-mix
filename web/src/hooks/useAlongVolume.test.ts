@@ -31,7 +31,7 @@ describe('useAlongVolume', () => {
     });
     pi.getSonosNow.mockReturnValueOnce(nowAt(12)).mockReturnValueOnce(nowAt(20));
     const { result, rerender } = renderHook(({ room }: { room: string | null }) => useAlongVolume(room), {
-      initialProps: { room: 'Kitchen' as string | null }
+      initialProps: { room: 'Kitchen' }
     });
     await waitFor(() => expect(result.current.volume).toBe(12));
     act(() => tell('now'));
