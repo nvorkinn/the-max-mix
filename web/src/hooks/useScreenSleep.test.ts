@@ -149,7 +149,7 @@ describe('useScreenSleep', () => {
     expect(result.current.asleep).toBe(true);
   });
 
-  it('in quiet hours a backlit screen dims ten seconds after the last touch and still sleeps at the minute', () => {
+  it('in quiet hours a backlit screen dims five seconds after the last touch and still sleeps at the minute', () => {
     const { result } = renderSleep({ onDashboard: false, quiet: true, backlit: true });
     advance(QUIET_DIM_MS - 1);
     expect(result.current.dimmed).toBe(false);
@@ -161,7 +161,7 @@ describe('useScreenSleep', () => {
     expect(result.current.asleep).toBe(true);
   });
 
-  it('in quiet hours the tap on a dimmed backlit screen brightens it for another ten seconds', () => {
+  it('in quiet hours the tap on a dimmed backlit screen brightens it for another five seconds', () => {
     const { result } = renderSleep({ quiet: true, backlit: true });
     advance(QUIET_DIM_MS);
     act(() => {

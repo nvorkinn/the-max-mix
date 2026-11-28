@@ -23,6 +23,11 @@ describe('dimmedBrightness', () => {
     expect(dimmedBrightness(50)).toBe(15);
     expect(dimmedBrightness(1)).toBe(1);
   });
+
+  it('is the lowest in quiet hours, whatever the setting', () => {
+    expect(dimmedBrightness(100, true)).toBe(1);
+    expect(dimmedBrightness(40, true)).toBe(1);
+  });
 });
 
 describe('setBacklight', () => {
