@@ -213,7 +213,6 @@ to `POST /log` (at most 30 lines a minute reach the journal). Both are in the jo
 | `GET /wifi/status`                     | `{"ssid"}`: the network the Wi-Fi is on, or null (the app only)                       |
 | `GET /wifi/networks`                   | The Wi-Fi networks in range, strongest first                                          |
 | `POST /wifi/connect`                   | Joins one (`{"ssid", "password", "hidden", "security"}`)                              |
-| `GET /location/scan`                   | `{"accessPoints": [{"macAddress", "signalStrength", "channel"}]}` (the app only)      |
 
 ## Bluetooth speakers
 
@@ -277,14 +276,6 @@ by itself when the kiosk starts with no network. The app works offline because t
 then `http://127.0.0.1:7341`), and the Wi-Fi POSTs answer the app's origin only. They use nmcli (`nmcli.ts`): the
 password reaches nmcli on stdin, never in argv or the journal, and a failed attempt deletes the profile it made and
 brings back the Wi-Fi that was on. Joining a network restarts nothing: the app stays up and sees the new network.
-
-`GET /location/scan` is for the setup wizard's Location step, which sends the access points to countdown-server's
-`POST /api/devices/locate` to find the kiosk's postcode. It is its own scan (`nmcli -t -f BSSID,SSID,CHAN,FREQ,SIGNAL
-device wifi list --rescan yes`, about 4 s), as most kiosks join their network by QR code and never list networks. It
-runs as the kiosk user like the other scans, keeps the Pi on its network, and never runs at the same time as the
-Settings > Wi-Fi scan. Every access point counts, not one per network name; nmcli's percentage goes back to dBm
-(`signal / 2 - 100`, NetworkManager's own mapping), and it gives no age. Hidden networks, names ending in `_nomap`
-(opted out of location services) and the setup hotspot are left out, and the strongest 30 are answered.
 
 The service's own error messages stay in English in the code; the app shows them in its language with `localize` from
 `shared/src/words.ts`. The hotspot's page for a phone follows the phone's `Accept-Language`, with its words in that

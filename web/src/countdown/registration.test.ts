@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SetupStatus } from 'countdown-api';
+import touchscreen from '../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import { SCOPES } from '../spotify/auth';
 import {
   deviceCredentials,
   deviceSecret,
-  finishLocation,
   finishSetup,
   forgetRegistration,
-  isLocationSet,
+  forgetSetupVerifier,
   keepDeviceId,
   kioskScreen,
   needsSetup,
@@ -13,7 +15,11 @@ import {
   pairingState,
   pairingToken,
   registerScreen,
-  secretHash
+  secretHash,
+  sendSetupReport,
+  setupStart,
+  setupStatus,
+  setupVerifier
 } from './registration';
 import { countdownServer } from './server';
 
@@ -21,6 +27,7 @@ import { countdownServer } from './server';
 // from it (services/pairing.token_for).
 const EXAMPLE_SECRET = 'example-not-a-real-secret-0001';
 const EXAMPLE_HASH = 'e29484a427fb8d21c05a08648d91396508cb9179c4aff263ca74f0f3e3b97f3d';
+const RFC_VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 const EXAMPLE_TOKEN = '20566a32ebc64dd5e6d4d4bdf85263aaa586cb01ddd8c6ccd7056f16b430fe40';
 // What the-max-mix's kiosk service answers GET /screen with: an HDMI 1280x800 panel, which has no backlight.
 const PI_SCREEN = { width: 1280, height: 800, brightness_control: false };
@@ -178,20 +185,140 @@ describe('keeping the device', () => {
   it('forgets the device ID, the secret and the finished setup', () => {
     localStorage.setItem('maxmix.deviceSecret', '0123abcd');
     localStorage.setItem('maxmix.deviceId', '0a1b2c3d4e5f');
+    localStorage.setItem('maxmix.setupVerifier', RFC_VERIFIER);
     finishSetup();
-    finishLocation();
     forgetRegistration();
     expect(deviceCredentials()).toBeNull();
     expect(localStorage.getItem('maxmix.deviceSecret')).toBeNull();
     expect(localStorage.getItem('maxmix.setupDone')).toBeNull();
-    expect(isLocationSet()).toBe(false);
+    expect(setupVerifier()).toBeNull();
+  });
+});
+
+describe('the first setup report', () => {
+  it("is the first person's Spotify sign-in, with the challenge of a verifier the kiosk keeps", async () => {
+    // RFC 7636's example verifier, whose challenge is countdown-api's example report's.
+    localStorage.setItem('maxmix.setupVerifier', RFC_VERIFIER);
+    expect(await setupStart()).toEqual({ spotify: { ...touchscreen.setup_start.spotify, scope: SCOPES } });
+    expect(setupVerifier()).toBe(RFC_VERIFIER);
   });
 
-  it("keeps the wizard's Location chapter done", () => {
-    expect(isLocationSet()).toBe(false);
-    finishLocation();
-    expect(isLocationSet()).toBe(true);
-    expect(localStorage.getItem('maxmix.setupLocationDone')).toBe('1');
+  it('makes the verifier the first time, and sends the same challenge from then on', async () => {
+    expect(setupVerifier()).toBeNull();
+    const first = await setupStart();
+    const verifier = setupVerifier();
+    expect(verifier).toMatch(/^[\w-]{43,128}$/);
+    expect(first.spotify).toMatchObject({ client_id: touchscreen.setup_start.spotify.client_id, scope: SCOPES });
+    expect(first.spotify?.code_challenge).toMatch(/^[\w-]{43}$/);
+    expect(await setupStart()).toEqual(first);
+    expect(setupVerifier()).toBe(verifier);
+  });
+
+  it('forgets the verifier once the sign-in is done', async () => {
+    await setupStart();
+    forgetSetupVerifier();
+    expect(setupVerifier()).toBeNull();
+  });
+
+  it('says nothing of Spotify once someone is signed in on the kiosk', async () => {
+    localStorage.setItem(
+      'maxmix.people',
+      JSON.stringify({
+        clientId: touchscreen.setup_start.spotify.client_id,
+        active: 'max',
+        people: [{ spotifyId: 'max', name: 'Max', imageUrl: '', refreshToken: 'r', phoneAddress: '' }]
+      })
+    );
+    expect(await setupStart()).toEqual({});
+    expect(setupVerifier()).toBeNull();
+  });
+
+  it('still answers the report when the verifier cannot be kept', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const start = await setupStart();
+    expect(start.spotify?.code_challenge).toMatch(/^[\w-]{43}$/);
+    expect(() => forgetSetupVerifier()).not.toThrow();
+  });
+});
+
+describe('the setup on the server', () => {
+  const STATUS = touchscreen.setup_spotify as SetupStatus;
+
+  it('reports with the secret alone, before anyone owns the kiosk, and answers where the setup stands', async () => {
+    const secret = deviceSecret();
+    const fetch = answers(Response.json(touchscreen.setup_account));
+    expect(await sendSetupReport(touchscreen.setup_start)).toEqual(touchscreen.setup_account);
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect((url as URL).href).toBe('https://api.countdown.build/api/devices/setup');
+    expect(init?.method).toBe('PUT');
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${secret}`);
+    expect(JSON.parse(init?.body as string)).toEqual(touchscreen.setup_start);
+  });
+
+  it('tells a server without the route from one that cannot be asked now', async () => {
+    deviceSecret();
+    answers(new Response(null, { status: 404 }));
+    expect(await sendSetupReport({ phone_paired: true })).toBe('unsupported');
+    answers(Response.json({ error: 'unknown device' }, { status: 401 }));
+    expect(await sendSetupReport({ phone_paired: true })).toBeNull();
+    answers(new Error('Failed to fetch'));
+    expect(await sendSetupReport({ phone_paired: true })).toBeNull();
+  });
+
+  it('asks where the setup stands', async () => {
+    const secret = deviceSecret();
+    const fetch = answers(Response.json(STATUS));
+    const controller = new AbortController();
+    expect(await setupStatus(controller.signal)).toEqual(STATUS);
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect((url as URL).href).toBe('https://api.countdown.build/api/devices/setup');
+    expect(init?.method).toBe('GET');
+    expect(init?.signal).toBe(controller.signal);
+    expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${secret}`);
+  });
+
+  it('says when the server has no setup for the kiosk, and when it cannot be asked', async () => {
+    deviceSecret();
+    answers(new Response(null, { status: 404 }));
+    expect(await setupStatus()).toBe('unreported');
+    answers(Response.json({ error: 'unknown device' }, { status: 401 }));
+    expect(await setupStatus()).toBeNull();
+    answers(new Error('Failed to fetch'));
+    expect(await setupStatus()).toBeNull();
+  });
+
+  it('tells a server whose preflight fails for want of the route, by asking with nothing to preflight', async () => {
+    deviceSecret();
+    // A browser fails the call itself, as it does off the network; the plain ask after it is answered.
+    const preflightFails = (probe: Response) =>
+      vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation((_url, init) =>
+          init === undefined ? Promise.resolve(probe.clone()) : Promise.reject(new TypeError('Failed to fetch'))
+        );
+    const fetch = preflightFails(new Response('Not Found', { status: 404 }));
+    expect(await sendSetupReport({ phone_paired: true })).toBe('unsupported');
+    expect(await setupStatus()).toBe('unreported');
+    const [url, init] = fetch.mock.calls[1] ?? [];
+    expect((url as URL).href).toBe('https://api.countdown.build/api/devices/setup');
+    expect(init).toBeUndefined();
+    // A server with the route turns the plain ask away for its missing secret: the call failed for another reason.
+    preflightFails(Response.json({ error: 'missing secret' }, { status: 401 }));
+    expect(await sendSetupReport({ phone_paired: true })).toBeNull();
+    expect(await setupStatus()).toBeNull();
+  });
+
+  it('asks nothing without a secret, or a server named in the build', async () => {
+    const fetch = answers(Response.json(STATUS));
+    expect(await setupStatus()).toBeNull();
+    expect(await sendSetupReport({})).toBeNull();
+    deviceSecret();
+    vi.stubEnv('VITE_COUNTDOWN_API', '');
+    expect(await setupStatus()).toBeNull();
+    expect(await sendSetupReport({}, new AbortController().signal)).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 

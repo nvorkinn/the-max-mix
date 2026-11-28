@@ -146,8 +146,7 @@ function fakes(overrides: Partial<Deps> = {}, hotspotError?: Error, isPairingFai
       forget: ssid => {
         forgotten.push(ssid);
         return Promise.resolve({ ok: true });
-      },
-      locate: () => Promise.resolve([{ macAddress: 'aa:bb:cc:dd:ee:ff', signalStrength: -52, channel: 36 }])
+      }
     },
     handover: memoryHandover(),
     app: url =>
@@ -790,38 +789,10 @@ describe('Wi-Fi', () => {
       address: vi.fn(),
       connect: vi.fn(),
       saved: vi.fn(),
-      forget: vi.fn(),
-      locate: vi.fn()
+      forget: vi.fn()
     };
     const base = await start(fakes({ wifi }).deps);
     const response = await fetch(`${base}/wifi/networks`);
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({ error: ERRORS.disabled });
-  });
-
-  it('lists the access points in range for the app, and only the app, to find where the kiosk is', async () => {
-    const base = await start(fakes().deps);
-    const response = await fetch(`${base}/location/scan`, { headers: { Origin: ORIGIN } });
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      accessPoints: [{ macAddress: 'aa:bb:cc:dd:ee:ff', signalStrength: -52, channel: 36 }]
-    });
-    expect((await fetch(`${base}/location/scan`)).status).toBe(403);
-    expect((await fetch(`${base}/location/scan`, { headers: { Origin: LOCAL_ORIGIN } })).status).toBe(403);
-  });
-
-  it('says why a location scan failed', async () => {
-    const wifi = {
-      scan: vi.fn(),
-      current: vi.fn(),
-      address: vi.fn(),
-      connect: vi.fn(),
-      saved: vi.fn(),
-      forget: vi.fn(),
-      locate: () => Promise.reject(new ScanError(ERRORS.disabled))
-    };
-    const base = await start(fakes({ wifi }).deps);
-    const response = await fetch(`${base}/location/scan`, { headers: { Origin: ORIGIN } });
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({ error: ERRORS.disabled });
   });

@@ -5,9 +5,23 @@
 // hash of its secret's hash, so nothing secret is in it); whoever scans it signs in on their phone and becomes its
 // owner. The kiosk asks the server every few seconds whether it has an owner, and keeps its device ID once it has.
 // Nothing signs in on the kiosk itself, so no sign-in is left waiting on its screen for someone to come by.
+//
+// The first-time setup is followed on the server too (GET and PUT /api/devices/setup), so the kiosk and its owner's
+// phone show the same step. The kiosk tells the server what only it knows: as soon as it is registered, what its first
+// person's Spotify sign-in asks for, with the challenge of a PKCE verifier it keeps here until that sign-in is done
+// (the server makes the sign-in from it when the phone gets there, and the kiosk exchanges Spotify's code itself);
+// later, what its Soloist is called and whether it is signed in, and whether the phone is paired.
 
-import type { TouchscreenRegistration } from 'countdown-api';
-import { getAccount, registerDevice } from '../../../vendor/countdown-api/src/countdown_api/client';
+import type { SetupReport, SetupStatus, TouchscreenRegistration } from 'countdown-api';
+import {
+  getAccount,
+  getSetup,
+  registerDevice,
+  reportSetup
+} from '../../../vendor/countdown-api/src/countdown_api/client';
+import type { Client } from '../../../vendor/countdown-api/src/countdown_api/client';
+import { challengeFor, newVerifier, peopleOnKiosk, SCOPES } from '../spotify/auth';
+import { getClientId } from '../spotify/settings';
 import { isKiosk } from '../utils/kiosk';
 import { KIOSK_SERVICE } from '../utils/kioskService';
 import { countdownApi, countdownServer } from './server';
@@ -17,9 +31,9 @@ const DEVICE_ID_KEY = 'maxmix.deviceId';
 const DEVICE_ID_PATTERN = /^[\w-]{1,64}$/;
 // Set once the first-time setup wizard is done (components/setup/SetupWizard.tsx).
 const SETUP_DONE_KEY = 'maxmix.setupDone';
-// Set once the wizard's Location chapter is done or skipped. A kiosk set up before the chapter was added has the key
-// above, and never sees the wizard again.
-const LOCATION_DONE_KEY = 'maxmix.setupLocationDone';
+// The PKCE verifier of the first person's Spotify sign-in, from the kiosk's first setup report until they are signed
+// in: pairing reloads the page in between.
+const SETUP_VERIFIER_KEY = 'maxmix.setupVerifier';
 
 /** The kiosk's secret and the device ID the server gave it, once it is registered. */
 export interface DeviceCredentials {
@@ -61,7 +75,7 @@ export function forgetRegistration(): void {
     localStorage.removeItem(DEVICE_ID_KEY);
     localStorage.removeItem(SECRET_KEY);
     localStorage.removeItem(SETUP_DONE_KEY);
-    localStorage.removeItem(LOCATION_DONE_KEY);
+    localStorage.removeItem(SETUP_VERIFIER_KEY);
   } catch {
     // Storage is unavailable, so there was nothing kept to forget.
   }
@@ -125,17 +139,95 @@ export function finishSetup(): void {
   }
 }
 
-/** Whether the wizard's Location chapter is done (or was skipped). */
-export function isLocationSet(): boolean {
-  return read(LOCATION_DONE_KEY) !== null;
+/** The verifier the kiosk keeps for its first person's Spotify sign-in, or null when there is none. */
+export function setupVerifier(): string | null {
+  return read(SETUP_VERIFIER_KEY);
 }
 
-/** The wizard's Location chapter is done: the page reloading doesn't bring it back. */
-export function finishLocation(): void {
+/** The first person is signed in (or the kiosk is being forgotten): the verifier has done its work. */
+export function forgetSetupVerifier(): void {
   try {
-    localStorage.setItem(LOCATION_DONE_KEY, '1');
+    localStorage.removeItem(SETUP_VERIFIER_KEY);
   } catch {
-    // Storage is unavailable: the chapter comes back at the next start, to be skipped or done again.
+    // Storage is unavailable, so there was no verifier kept.
+  }
+}
+
+/**
+ * The kiosk's first setup report: what its first person's Spotify sign-in asks for, with the challenge of the verifier
+ * it keeps (a new one the first time, the same one after), so the server can make that sign-in when the phone gets
+ * there. Nothing, once someone is signed in: the report then only says that the kiosk follows the setup's status.
+ */
+export async function setupStart(): Promise<SetupReport> {
+  if (peopleOnKiosk().length > 0) return {};
+  let verifier = read(SETUP_VERIFIER_KEY);
+  let challenge: string;
+  if (verifier) {
+    challenge = await challengeFor(verifier);
+  } else {
+    ({ verifier, challenge } = await newVerifier());
+    try {
+      localStorage.setItem(SETUP_VERIFIER_KEY, verifier);
+    } catch {
+      // Storage is unavailable: the sign-in can't be finished after a reload, and the phone is asked to try again.
+    }
+  }
+  return { spotify: { client_id: getClientId(), code_challenge: challenge, scope: SCOPES } };
+}
+
+/** The screens' API with the kiosk's secret alone, which the setup routes take before anyone owns it; null with none. */
+function setupClient(): Client | null {
+  const api = countdownApi();
+  const secret = read(SECRET_KEY);
+  return api && secret ? { baseUrl: api, secret } : null;
+}
+
+/**
+ * Whether the server has no setup routes at all, when a call to one failed outright. A browser can't read such a
+ * server's 404 from the call itself: the route's CORS preflight is answered 404 too, which fails the call as if the
+ * network had. So this asks the route with nothing that needs a preflight (no secret): 404 from a server without it,
+ * 401 from one with. False when that can't be asked either.
+ */
+async function lacksSetupRoutes(client: Client): Promise<boolean> {
+  try {
+    const response = await fetch(new URL('/api/devices/setup', client.baseUrl));
+    return response.status === 404;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Tells the server something of the kiosk's setup (PUT /api/devices/setup). Answers where the setup then stands,
+ * `unsupported` when the server has no such route (404: one from before the setup was followed), or null when it
+ * can't be told now (the server can't be reached, or doesn't know the kiosk yet).
+ */
+export async function sendSetupReport(
+  report: SetupReport,
+  signal?: AbortSignal
+): Promise<SetupStatus | 'unsupported' | null> {
+  const client = setupClient();
+  if (!client) return null;
+  try {
+    const { data, response } = await reportSetup(client, report, { ...(signal && { signal }) });
+    return response.status === 404 ? 'unsupported' : (data ?? null);
+  } catch {
+    return (await lacksSetupRoutes(client)) ? 'unsupported' : null;
+  }
+}
+
+/**
+ * Where the kiosk's setup stands (GET /api/devices/setup): `unreported` when the server has none for it (404: the
+ * kiosk has never reported, or the server has no such route), or null when it can't be told now.
+ */
+export async function setupStatus(signal?: AbortSignal): Promise<SetupStatus | 'unreported' | null> {
+  const client = setupClient();
+  if (!client) return null;
+  try {
+    const { data, response } = await getSetup(client, {}, { ...(signal && { signal }) });
+    return response.status === 404 ? 'unreported' : (data ?? null);
+  } catch {
+    return (await lacksSetupRoutes(client)) ? 'unreported' : null;
   }
 }
 

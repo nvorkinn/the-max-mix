@@ -79,7 +79,8 @@ const base64Url = (bytes: Uint8Array): string =>
 
 const randomString = (length: number): string => base64Url(crypto.getRandomValues(new Uint8Array(length)));
 
-async function challengeFor(verifier: string): Promise<string> {
+/** The S256 challenge of a PKCE verifier: what whoever starts the sign-in is told in its place. */
+export async function challengeFor(verifier: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return base64Url(new Uint8Array(digest));
 }

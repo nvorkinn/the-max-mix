@@ -1,5 +1,4 @@
-// Wi-Fi through NetworkManager's nmcli, for the app's Settings > Wi-Fi and the phone setups, and the access points in
-// range, from which the setup wizard finds the kiosk's postcode (countdown-server's POST /api/devices/locate).
+// Wi-Fi through NetworkManager's nmcli, for the app's Settings > Wi-Fi and the phone setups.
 // The Pi keeps only the network it is on: once a new one is joined, the saved connections to every other network are
 // deleted (a failed join changes nothing it kept).
 // Every command is an argument list, never a shell. The password reaches nmcli on stdin (`--ask`), never in argv, so
@@ -139,60 +138,6 @@ export function parseScan(output: string): Network[] {
   );
 }
 
-/** One access point in range, as Google's Geolocation API takes it: the setup wizard sends these to countdown-server. */
-export interface AccessPoint {
-  /** The BSSID, lowercase with colons. */
-  macAddress: string;
-  /** In dBm, a whole number. */
-  signalStrength: number;
-  channel: number;
-  /** How long ago it was last heard, in ms. nmcli does not say, so it is left out. */
-  age?: number;
-}
-
-/** The most access points a location scan answers. */
-export const MAX_ACCESS_POINTS = 30;
-
-/** A BSSID in nmcli's form (`AA:BB:CC:DD:EE:FF`, once unescaped), lowercase, or null when it is not one. */
-function macAddressOf(bssid: string): string | null {
-  const octets = bssid.toLowerCase().split(':');
-  return octets.length === 6 && octets.every(octet => /^[\da-f]{2}$/.test(octet)) ? octets.join(':') : null;
-}
-
-/**
- * Whether an access point may be used to find where the kiosk is: not a hidden network, not one whose name ends in
- * `_nomap` (its owner opted out of location services), and not the kiosk's own setup hotspot.
- */
-const isLocatable = (ssid: string): boolean =>
-  ssid.trim() !== '' && !ssid.startsWith(String.raw`\x00`) && !ssid.endsWith('_nomap') && ssid !== HOTSPOT_SSID;
-
-/** One row of `nmcli -t -f BSSID,SSID,CHAN,FREQ,SIGNAL device wifi list` output, or null when it is not to be used. */
-function accessPointOf(line: string): AccessPoint | null {
-  const fields = splitTerse(line);
-  const [bssid = '', ssid = '', channelText = '', , signalText = ''] = fields;
-  if (signalText === '' || fields.length !== 5 || !isLocatable(ssid)) return null;
-  const macAddress = macAddressOf(bssid);
-  const channel = Number(channelText);
-  const signal = Number(signalText);
-  if (macAddress === null || !Number.isSafeInteger(channel) || channel <= 0 || !Number.isFinite(signal)) return null;
-  const percent = Math.max(0, Math.min(100, signal));
-  return { macAddress, signalStrength: Math.round(percent / 2 - 100), channel };
-}
-
-/**
- * The access points in `nmcli -t -f BSSID,SSID,CHAN,FREQ,SIGNAL device wifi list` output, every one of them (several
- * may share a network name), strongest first, at most MAX_ACCESS_POINTS. nmcli's signal is a percentage, onto which
- * NetworkManager maps -100 to -50 dBm; this turns it back into dBm.
- */
-export function parseAccessPoints(output: string): AccessPoint[] {
-  return output
-    .split('\n')
-    .map(line => accessPointOf(line))
-    .filter(point => point !== null)
-    .toSorted((a, b) => b.signalStrength - a.signalStrength || a.macAddress.localeCompare(b.macAddress))
-    .slice(0, MAX_ACCESS_POINTS);
-}
-
 /** A WPA passphrase: 8 to 63 characters, or 64 hexadecimal digits. */
 export const isValidPsk = (password: string): boolean =>
   password.length === 64 ? /^[\da-f]{64}$/i.test(password) : password.length >= 8 && password.length <= 63;
@@ -238,11 +183,8 @@ export type ConnectResult = { ok: true } | { ok: false; error: string };
 
 export class Nmcli {
   private readonly run: Run;
-  // One scan at a time: a second caller of the same kind shares it, and the other kind waits for it to end. No new
-  // attempt while one is connecting.
+  // One scan at a time: a second caller shares it. No new attempt while one is connecting.
   private scanning: Promise<Network[]> | undefined;
-  private locating: Promise<AccessPoint[]> | undefined;
-  private scanQueue: Promise<undefined> = Promise.resolve(undefined);
   private isConnecting = false;
 
   constructor(run: Run = runCommand) {
@@ -258,27 +200,14 @@ export class Nmcli {
     return result;
   }
 
-  /** Runs the task once every scan before it has ended, so only one scan runs at a time. */
-  private async queueScan<T>(task: () => Promise<T>): Promise<T> {
-    const before = this.scanQueue;
-    const { promise, resolve } = Promise.withResolvers<undefined>();
-    this.scanQueue = promise;
-    try {
-      await before;
-      return await task();
-    } finally {
-      resolve(undefined);
-    }
-  }
-
   /**
-   * Turns the radio on and has NetworkManager scan, then lists these fields of what it found. Scanning leaves the
-   * network the Wi-Fi is on alone. Rejects with a ScanError whose message is safe to show.
+   * Turns the radio on and has NetworkManager scan, then lists the networks it found. Scanning leaves the network the
+   * Wi-Fi is on alone. Rejects with a ScanError whose message is safe to show.
    */
-  private async rescan(fields: string): Promise<string> {
+  private async rescan(): Promise<Network[]> {
     await this.call(['nmcli', 'radio', 'wifi', 'on']);
     const { code, stdout, stderr } = await this.call(
-      ['nmcli', '-t', '-f', fields, 'device', 'wifi', 'list', '--rescan', 'yes'],
+      ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list', '--rescan', 'yes'],
       undefined,
       SCAN_TIMEOUT_MS
     );
@@ -286,7 +215,7 @@ export class Nmcli {
       const isKnown = code === 124 || code === 127 || stderr.toLowerCase().includes('disabled');
       throw new ScanError(isKnown ? friendlyError(code, stderr) : ERRORS.scan);
     }
-    return stdout;
+    return parseScan(stdout);
   }
 
   private async wifiUuids(isActive: boolean): Promise<string[]> {
@@ -409,24 +338,11 @@ export class Nmcli {
 
   /** Turns the radio on, then lists the networks in range. Rejects with a ScanError whose message is safe to show. */
   async scan(): Promise<Network[]> {
-    this.scanning ??= this.queueScan(async () => parseScan(await this.rescan('SSID,SIGNAL,SECURITY')));
+    this.scanning ??= this.rescan();
     try {
       return await this.scanning;
     } finally {
       this.scanning = undefined;
-    }
-  }
-
-  /**
-   * Scans for the access points in range, for finding where the kiosk is (parseAccessPoints). Never at the same time
-   * as scan(). Rejects with a ScanError whose message is safe to show.
-   */
-  async locate(): Promise<AccessPoint[]> {
-    this.locating ??= this.queueScan(async () => parseAccessPoints(await this.rescan('BSSID,SSID,CHAN,FREQ,SIGNAL')));
-    try {
-      return await this.locating;
-    } finally {
-      this.locating = undefined;
     }
   }
 

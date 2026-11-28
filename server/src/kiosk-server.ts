@@ -28,8 +28,7 @@ function wifi() {
     address: () => lanAddress(networkInterfaces()),
     connect: (request: ConnectRequest) => nmcli.connect(request),
     saved: () => nmcli.saved(),
-    forget: (ssid: string) => nmcli.forget(ssid),
-    locate: () => nmcli.locate()
+    forget: (ssid: string) => nmcli.forget(ssid)
   };
 }
 

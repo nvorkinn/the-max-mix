@@ -1,18 +1,13 @@
-// cspell:ignore GZZLUWSM
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DeviceLocation, TouchscreenConfig } from 'countdown-api';
-import locate from '../../../../vendor/countdown-api/src/countdown_api/fixtures/locate.json';
-import touchscreen from '../../../../vendor/countdown-api/src/countdown_api/fixtures/touchscreen.json';
+import type { SetupStatus } from 'countdown-api';
 import userEvent from '../../test/user';
-import { loadDeviceConfig, saveConfigSection } from '../../countdown/config';
-import { findPostcode } from '../../countdown/location';
-import { deviceCredentials, finishLocation, finishSetup, isLocationSet } from '../../countdown/registration';
-import { locatePlace, nearbyStops, rememberStop, SearchFailed } from '../../countdown/search';
-import type { NearbyStop } from '../../countdown/search';
+import { loadDeviceConfig } from '../../countdown/config';
+import { deviceCredentials, finishSetup, forgetSetupVerifier } from '../../countdown/registration';
 import { usePhonePairing } from '../../hooks/usePhonePairing';
-import { usePhoneSignIn } from '../../hooks/usePhoneSignIn';
+import { usePhoneSignIn, useSetupSignIn } from '../../hooks/usePhoneSignIn';
 import { useScreenSleep } from '../../hooks/useScreenSleep';
+import { useSetupStatus } from '../../hooks/useSetupStatus';
 import { useSoloistKey } from '../../hooks/useSoloistKey';
 import { useSoloistSignIn } from '../../hooks/useSoloistSignIn';
 import { peopleOnKiosk, takePhoneToPair } from '../../spotify/auth';
@@ -21,34 +16,22 @@ import { hasCamera } from '../../utils/kioskCamera';
 import { joinWifi } from '../../utils/kioskWifi';
 import { useWifi } from '../settings/wifi';
 import type { WifiState } from '../settings/wifi';
-import { LOOKING_MS } from './SetupLocation';
-import SetupWizard, { NETWORK_POLL_MS } from './SetupWizard';
+import SetupWizard, { FINISH_REPORT_MS, NETWORK_POLL_MS } from './SetupWizard';
 import { useRegistration } from './useRegistration';
-import { useSetupLocation } from './useSetupLocation';
 
 vi.mock('../../countdown/registration', async importOriginal => ({
   ...(await importOriginal<typeof import('../../countdown/registration')>()),
   deviceCredentials: vi.fn(),
-  finishLocation: vi.fn(),
   finishSetup: vi.fn(),
-  isLocationSet: vi.fn(),
+  forgetSetupVerifier: vi.fn(),
   pairingToken: vi.fn(() => Promise.resolve('a-token'))
 }));
 vi.mock('../../countdown/server', () => ({ countdownServer: () => 'https://countdown.build' }));
-vi.mock('../../countdown/config', () => ({ loadDeviceConfig: vi.fn(), saveConfigSection: vi.fn() }));
-vi.mock('../../countdown/location', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../countdown/location')>()),
-  findPostcode: vi.fn()
-}));
-vi.mock('../../countdown/search', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../countdown/search')>()),
-  locatePlace: vi.fn(),
-  nearbyStops: vi.fn(),
-  rememberStop: vi.fn()
-}));
+vi.mock('../../countdown/config', () => ({ loadDeviceConfig: vi.fn() }));
 vi.mock('../../hooks/usePhonePairing', () => ({ usePhonePairing: vi.fn() }));
-vi.mock('../../hooks/usePhoneSignIn', () => ({ usePhoneSignIn: vi.fn() }));
+vi.mock('../../hooks/usePhoneSignIn', () => ({ usePhoneSignIn: vi.fn(), useSetupSignIn: vi.fn() }));
 vi.mock('../../hooks/useScreenSleep', () => ({ useScreenSleep: vi.fn() }));
+vi.mock('../../hooks/useSetupStatus', () => ({ useSetupStatus: vi.fn() }));
 vi.mock('../../hooks/useSoloistKey', () => ({ useSoloistKey: vi.fn() }));
 vi.mock('../../hooks/useSoloistSignIn', () => ({ useSoloistSignIn: vi.fn() }));
 vi.mock('../../spotify/auth', () => ({ peopleOnKiosk: vi.fn(), takePhoneToPair: vi.fn() }));
@@ -78,10 +61,6 @@ vi.mock('../settings/WifiSettings', () => ({
     </div>
   )
 }));
-vi.mock('./useSetupLocation', async importOriginal => ({
-  ...(await importOriginal<typeof import('./useSetupLocation')>()),
-  useSetupLocation: vi.fn()
-}));
 vi.mock('./useRegistration', async importOriginal => ({
   ...(await importOriginal<typeof import('./useRegistration')>()),
   useRegistration: vi.fn()
@@ -100,42 +79,6 @@ const CREDENTIALS = { deviceId: '0a1b2c3d4e5f', secret: 'a-secret' };
 const KIOSK = 'The Max Mix 4';
 const CODE = 'QR code to set up this screen on your phone';
 
-// What the background lookup found: Walworth's postcodes, and stops near it.
-const LOCATION = locate.locate as DeviceLocation;
-const busStop = (letter: string, distance: number, lines = ['40', '68']): NearbyStop => ({
-  key: `tfl:490014501${letter}`,
-  name: 'Westmoreland Road',
-  detail: lines.join(', '),
-  letter,
-  indent: false,
-  value: { source: 'tfl', id: `490014501${letter}` },
-  distance,
-  mode: 'bus',
-  lines
-});
-const station = (id: string, name: string, distance: number, lines: string[]): NearbyStop => ({
-  key: `tfl:${id}`,
-  name,
-  detail: lines.join(', '),
-  indent: false,
-  value: { source: 'tfl', id },
-  distance,
-  mode: 'tube',
-  lines
-});
-const NEAREST = busStop('K', 136);
-const KENNINGTON = station('940GZZLUKNG', 'Kennington Underground Station', 1062, ['Northern']);
-const NEAR = [NEAREST, busStop('M', 180), KENNINGTON];
-const WESTMINSTER = station('940GZZLUWSM', 'Westminster Underground Station', 90, ['District', 'Circle', 'Jubilee']);
-const CONFIG = touchscreen.config as TouchscreenConfig;
-const PLACE = {
-  key: '2643743',
-  name: 'London',
-  detail: 'United Kingdom',
-  indent: false,
-  value: { location: 'London', key: 'london-gb-2643743' }
-};
-
 const pairing = {
   pairing: { state: 'idle' } as const,
   error: null as string | null,
@@ -144,6 +87,11 @@ const pairing = {
 };
 const recheck = vi.fn();
 const onWifi = (wifi: WifiState) => vi.mocked(useWifi).mockReturnValue([wifi, recheck]);
+
+const report = vi.fn<(facts: object) => Promise<boolean>>();
+/** What the server says of the setup: a status, null from one that doesn't follow setups, undefined until it has said. */
+const onServer = (status: SetupStatus | null | undefined) =>
+  vi.mocked(useSetupStatus).mockReturnValue({ status, report });
 
 const chapter = (name: string) => screen.getByRole('region', { name });
 const current = () =>
@@ -159,8 +107,10 @@ beforeEach(() => {
   vi.mocked(hasCamera).mockResolvedValue(false);
   vi.mocked(joinWifi).mockResolvedValue({ ok: true });
   onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
-  vi.mocked(isLocationSet).mockReturnValue(true);
-  vi.mocked(useSetupLocation).mockReturnValue(undefined);
+  vi.mocked(loadDeviceConfig).mockResolvedValue(null);
+  report.mockResolvedValue(true);
+  // A server from before setups were followed, so the kiosk goes by what it knows itself.
+  onServer(null);
 });
 
 afterEach(() => {
@@ -168,7 +118,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('SetupWizard', () => {
+describe('SetupWizard, on a server that does not follow setups', () => {
   it('welcomes first, then lists the chapters, the one on now lit, and starts on Wi-Fi with no Next button', async () => {
     vi.mocked(deviceCredentials).mockReturnValue(null);
     vi.mocked(peopleOnKiosk).mockReturnValue([]);
@@ -183,7 +133,6 @@ describe('SetupWizard', () => {
       'Account',
       'Spotify',
       'Soloist',
-      'Location',
       'Presence'
     ]);
     expect(current()).toBe('Wi-Fi');
@@ -446,6 +395,10 @@ describe('SetupWizard', () => {
     expect(takePhoneToPair).toHaveBeenCalled();
     expect(finishSetup).toHaveBeenCalled();
     expect(onFinished).toHaveBeenCalled();
+    // Nothing is told to a server that doesn't follow setups, and no config is asked for on its account.
+    expect(report).not.toHaveBeenCalled();
+    expect(loadDeviceConfig).not.toHaveBeenCalled();
+    expect(forgetSetupVerifier).not.toHaveBeenCalled();
   });
 
   it('starts on Done when the phone was already paired', () => {
@@ -454,282 +407,246 @@ describe('SetupWizard', () => {
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').every(item => item.classList.contains('is-done'))).toBe(true);
   });
+});
 
-  it('goes on to Location after Soloist, and back to Wi-Fi from it when the kiosk loses its network', async () => {
-    vi.mocked(isLocationSet).mockReturnValue(false);
-    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+describe('SetupWizard, following the setup on the server', () => {
+  const SIGN_IN = {
+    id: 'a-sign-in',
+    redirect_uri: 'https://countdown.build/spotify/sign-in/callback',
+    expires_in: 600
+  };
+  const ticked = () =>
+    screen
+      .getAllByRole('listitem')
+      .filter(item => item.classList.contains('is-done'))
+      .map(item => item.textContent);
+
+  it('lists Location among the chapters, and asks the server once the kiosk is on a network', async () => {
+    onServer(undefined);
+    vi.mocked(deviceCredentials).mockReturnValue(null);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    onWifi({ state: 'disconnected', address: null });
     const { rerender } = render(<SetupWizard />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual([
+      'Wi-Fi',
+      'Account',
+      'Spotify',
+      'Soloist',
+      'Location',
+      'Presence'
+    ]);
+    expect(useSetupStatus).toHaveBeenLastCalledWith(false);
+    onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
+    rerender(<SetupWizard />);
+    expect(useSetupStatus).toHaveBeenLastCalledWith(true);
+    // Nobody owns it yet: Account, whatever the server says, with the code to scan.
+    onServer({ step: 'account' });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Account');
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('only waits, starting nothing, until the server has said whether it follows the setup', () => {
+    onServer(undefined);
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    render(<SetupWizard />);
+    expect(current()).toBe('Spotify');
+    expect(chapter('Spotify')).toHaveTextContent('');
+    expect(usePhoneSignIn).not.toHaveBeenCalled();
+    expect(useSetupSignIn).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['account', 'Account', ['Wi-Fi']],
+    ['spotify', 'Spotify', ['Wi-Fi', 'Account']],
+    ['soloist_key', 'Soloist', ['Wi-Fi', 'Account', 'Spotify']],
+    ['soloist_sign_in', 'Soloist', ['Wi-Fi', 'Account', 'Spotify']],
+    ['location', 'Location', ['Wi-Fi', 'Account', 'Spotify', 'Soloist']],
+    ['presence', 'Presence', ['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Location']],
+    ['done', 'Presence', ['Wi-Fi', 'Account', 'Spotify', 'Soloist', 'Location', 'Presence']]
+  ] as const)('is on the chapter of the server’s step %s, whatever the kiosk itself knows', (step, name, done) => {
+    onServer({ step });
+    render(<SetupWizard />);
+    expect(current()).toBe(name);
+    expect(ticked()).toEqual(done);
+  });
+
+  it('shows the code again on Account when the server says nobody owns the kiosk any more', async () => {
+    onServer({ step: 'account' });
+    render(<SetupWizard />);
+    expect(chapter('Account')).toHaveTextContent('Scan to proceed.');
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
+  });
+
+  it('finishes the sign-in the server made on Spotify, and starts none of its own', () => {
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    onServer({ step: 'spotify' });
+    const { rerender } = render(<SetupWizard />);
+    expect(chapter('Spotify')).toHaveTextContent('Sign in to Spotify on your phone.');
+    // The phone isn't at Spotify yet, so there is no sign-in to ask about.
+    expect(useSetupSignIn).toHaveBeenLastCalledWith(undefined, expect.any(Function));
+    onServer({ step: 'spotify', spotify_sign_in: SIGN_IN });
+    rerender(<SetupWizard />);
+    expect(useSetupSignIn).toHaveBeenLastCalledWith(SIGN_IN, expect.any(Function));
+    expect(usePhoneSignIn).not.toHaveBeenCalled();
+    expect(useSoloistKey).toHaveBeenLastCalledWith('', false);
+  });
+
+  it('asks for the Soloist key code as soon as someone is signed in, which is what moves the server on', () => {
+    onServer({ step: 'spotify', spotify_sign_in: SIGN_IN });
+    vi.mocked(useSoloistKey).mockReturnValue({ pageUrl: 'https://countdown.build/soloist?code=c' });
+    render(<SetupWizard />);
+    expect(current()).toBe('Spotify');
+    expect(useSoloistKey).toHaveBeenLastCalledWith('max', true);
+  });
+
+  it('says to save the key on the phone while the server waits for it', () => {
+    onServer({ step: 'soloist_key' });
+    vi.mocked(useSoloistKey).mockReturnValue({ pageUrl: 'https://countdown.build/soloist?code=c' });
+    render(<SetupWizard />);
+    expect(chapter('Soloist')).toHaveTextContent('Soloist needs an API key from you.');
+    expect(useSetupSignIn).not.toHaveBeenCalled();
+  });
+
+  it('has them pick the kiosk in Spotify, tells the server its name, then that Soloist has signed in', () => {
+    onServer({ step: 'soloist_sign_in' });
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: null, deviceName: null });
+    const { rerender } = render(<SetupWizard />);
+    expect(chapter('Soloist')).toHaveTextContent('');
+    expect(report).not.toHaveBeenCalled();
+
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: KIOSK });
+    rerender(<SetupWizard />);
+    expect(chapter('Soloist')).toHaveTextContent(`Open Spotify on your phone and pick ${KIOSK} in the device list.`);
+    expect(report).toHaveBeenLastCalledWith({ soloist_device: KIOSK });
+
     vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: true, deviceName: KIOSK });
     rerender(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(report).toHaveBeenLastCalledWith({ soloist_device: KIOSK, soloist_signed_in: true });
+    // The phone goes on by itself, so nothing here waits for a tap: the chapter changes when the server's step does.
+    expect(screen.queryByText('Soloist is set up and signed in to Spotify.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
+    onServer({ step: 'location', soloist_device: KIOSK });
+    rerender(<SetupWizard />);
     expect(current()).toBe('Location');
+  });
+
+  it('reports a name no longer than the server takes', () => {
+    onServer({ step: 'soloist_sign_in' });
+    vi.mocked(useSoloistSignIn).mockReturnValue({ isSignedIn: false, deviceName: 'x'.repeat(80) });
+    render(<SetupWizard />);
+    expect(report).toHaveBeenLastCalledWith({ soloist_device: 'x'.repeat(64) });
+  });
+
+  it('leaves Location to the phone, and gets the config again once it is saved or skipped there', async () => {
+    onServer({ step: 'location' });
+    const { rerender } = render(<SetupWizard />);
+    expect(chapter('Location')).toHaveTextContent('Tell us where the tablet is on your phone');
+    expect(chapter('Location')).toHaveTextContent('You can skip this for now.');
+    expect(screen.queryByRole('button', { name: 'Skip for now' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: CODE })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Lost the page on your phone? Show the code again' }));
+    expect(await screen.findByRole('img', { name: CODE })).toBeInTheDocument();
+    expect(loadDeviceConfig).not.toHaveBeenCalled();
+
+    onServer({ step: 'presence' });
+    rerender(<SetupWizard />);
+    expect(current()).toBe('Presence');
+    expect(loadDeviceConfig).toHaveBeenCalledTimes(1);
+    expect(chapter('Presence')).toHaveTextContent('Open Settings, then Bluetooth, on your phone, and tap OK.');
+  });
+
+  it('tells the server once the phone is paired, and ends on Done when the server says the setup is', async () => {
+    onServer({ step: 'presence' });
+    const { rerender } = render(<SetupWizard />);
+    expect(report).toHaveBeenLastCalledWith({ soloist_device: KIOSK, soloist_signed_in: true });
+    vi.mocked(usePhonePairing).mockReturnValue({
+      ...pairing,
+      pairing: { state: 'paired', name: PHONE.name, address: PHONE.address }
+    });
+    rerender(<SetupWizard />);
+    expect(report).toHaveBeenLastCalledWith({
+      soloist_device: KIOSK,
+      soloist_signed_in: true,
+      phone_paired: true
+    });
+    expect(await screen.findByText('Setup complete')).toBeInTheDocument();
+  });
+
+  it('is complete when the server says so, though this page never saw the phone paired', async () => {
+    onServer({ step: 'done' });
+    const onFinished = vi.fn();
+    render(<SetupWizard onFinished={onFinished} />);
+    expect(screen.getByText('Setup complete')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(report).toHaveBeenLastCalledWith({ finished: true });
+    expect(takePhoneToPair).toHaveBeenCalled();
+    expect(finishSetup).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onFinished).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('opens the app at Done without waiting long for a server that does not answer', async () => {
+    onServer({ step: 'done' });
+    report.mockReturnValue(new Promise<never>(() => {}));
+    const onFinished = vi.fn();
+    render(<SetupWizard onFinished={onFinished} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(finishSetup).toHaveBeenCalled();
+    expect(onFinished).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(FINISH_REPORT_MS));
+    expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+
+  it('has only Done left when nobody is signed in on the kiosk to pair a phone for', async () => {
+    onServer({ step: 'presence' });
+    vi.mocked(peopleOnKiosk).mockReturnValue([]);
+    const onFinished = vi.fn();
+    render(<SetupWizard onFinished={onFinished} />);
+    expect(chapter('Presence')).toHaveTextContent('Setup complete');
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => {
+      expect(onFinished).toHaveBeenCalled();
+    });
+  });
+
+  it('goes back to Wi-Fi when the kiosk loses its network before Presence, and on again once it is back', () => {
+    onServer({ step: 'location' });
+    const { rerender } = render(<SetupWizard />);
     onWifi({ state: 'disconnected', address: null });
     rerender(<SetupWizard />);
+    expect(current()).toBe('Location');
     onWifi({ state: 'disconnected', address: null });
     rerender(<SetupWizard />);
     expect(current()).toBe('Wi-Fi');
-  });
-});
-
-describe('The Location chapter', () => {
-  beforeEach(() => {
-    vi.mocked(isLocationSet).mockReturnValue(false);
-    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: NEAR });
-    vi.mocked(loadDeviceConfig).mockResolvedValue(CONFIG);
-    vi.mocked(saveConfigSection).mockImplementation((section, value) =>
-      Promise.resolve({ saved: { ...CONFIG, [section]: value } })
-    );
-    vi.mocked(locatePlace).mockResolvedValue(PLACE);
-    vi.mocked(nearbyStops).mockResolvedValue([WESTMINSTER]);
-    vi.mocked(findPostcode).mockResolvedValue(locate.near_query);
-  });
-
-  const nearest = () => screen.getByRole('button', { name: /^SE17 2PU/ });
-  const others = () => within(screen.getByRole('list', { name: 'Or one of these nearby?' })).getAllByRole('button');
-  const field = () => screen.getByRole('textbox', { name: 'What’s your postcode?' });
-  const column = (name: string) => within(screen.getByRole('region', { name })).getAllByRole('button');
-  const typeInstead = () => userEvent.click(screen.getByRole('button', { name: 'Not here? Type it in' }));
-
-  it('looks in the background once the kiosk is registered and online, and not once it is done', () => {
-    const { unmount } = render(<SetupWizard />);
-    expect(current()).toBe('Location');
-    expect(useSetupLocation).toHaveBeenLastCalledWith(true);
-    unmount();
-    vi.mocked(isLocationSet).mockReturnValue(true);
-    render(<SetupWizard />);
-    expect(useSetupLocation).toHaveBeenLastCalledWith(false);
-  });
-
-  it('asks whether the nearest postcode is theirs, with the others near it under it, alphabetically', () => {
-    render(<SetupWizard />);
-    expect(screen.getByText('Is this your postcode?')).toBeInTheDocument();
-    expect(nearest()).toHaveTextContent('Our best guess');
-    expect(others().map(button => button.textContent)).toEqual(
-      LOCATION.postcodes
-        .slice(1)
-        .map(near => near.postcode)
-        .toSorted((a, b) => a.localeCompare(b))
-    );
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument();
-  });
-
-  it('offers ten postcodes at most', () => {
-    const [first] = LOCATION.postcodes;
-    const many = Array.from({ length: 12 }, (_, index) => ({
-      postcode: `SE17 ${index}AA`,
-      latitude: first?.latitude ?? 0,
-      longitude: first?.longitude ?? 0,
-      distance: index * 10,
-      country: 'GB' as const
-    }));
-    vi.mocked(useSetupLocation).mockReturnValue({ location: { ...LOCATION, postcodes: many }, stops: NEAR });
-    render(<SetupWizard />);
-    expect(screen.getByRole('button', { name: /^SE17 0AA/ })).toBeInTheDocument();
-    expect(others()).toHaveLength(9);
-  });
-
-  it('waits with a spinner while the lookup runs, for 15 s at most, then asks them to type it', async () => {
-    vi.mocked(useSetupLocation).mockReturnValue(undefined);
-    const { rerender } = render(<SetupWizard />);
-    expect(screen.getByRole('status')).toHaveTextContent('Finding where you are…');
-    await act(() => vi.advanceTimersByTimeAsync(LOOKING_MS));
-    expect(field()).toBeInTheDocument();
-    // With nothing found, there is nothing to go back to.
-    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
-    // Found late after all: typing goes on, undisturbed.
-    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: NEAR });
+    expect(ticked()).toEqual(['Account', 'Spotify', 'Soloist']);
+    expect(useSetupStatus).toHaveBeenLastCalledWith(false);
+    onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
     rerender(<SetupWizard />);
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(current()).toBe('Location');
   });
 
-  it('asks them to type it when nothing was found', () => {
-    vi.mocked(useSetupLocation).mockReturnValue(null);
-    render(<SetupWizard />);
-    expect(field()).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument();
-  });
-
-  it('skips the whole chapter, saving nothing', async () => {
-    render(<SetupWizard />);
-    await userEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
-    expect(finishLocation).toHaveBeenCalled();
+  it('stays on Presence without a network, and goes back to Wi-Fi when the server could never be asked', () => {
+    onServer({ step: 'presence' });
+    const { rerender, unmount } = render(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    rerender(<SetupWizard />);
     expect(current()).toBe('Presence');
-    expect(saveConfigSection).not.toHaveBeenCalled();
-  });
+    unmount();
 
-  it('saves the postcode picked and the weather at it, then says what the tablet can show, none ticked', async () => {
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    await screen.findByText('The tablet can show live bus and Tube times');
-    expect(screen.getByText('Tap the stops you use most.')).toBeInTheDocument();
-    expect(loadDeviceConfig).toHaveBeenCalled();
-    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
-      postcode: 'SE17 2PU',
-      country: 'GB',
-      address: null
-    });
-    expect(locatePlace).toHaveBeenCalledExactlyOnceWith(LOCATION.postcodes[0]);
-    expect(saveConfigSection).toHaveBeenCalledWith('weather', PLACE.value);
-    expect(findPostcode).not.toHaveBeenCalled();
-    // The stops found in the background, near enough: not asked for again.
-    expect(nearbyStops).not.toHaveBeenCalled();
-    // Stations without "Underground Station", their lines named; bus stops with their letter and routes.
-    expect(column('Stations').map(card => card.textContent)).toEqual(['Kennington1.1 kmNorthern']);
-    expect(column('Bus stops').map(card => card.textContent)).toEqual([
-      'Westmoreland RoadStop K140 m4068',
-      'Westmoreland RoadStop M180 m4068'
-    ]);
-    expect([...column('Stations'), ...column('Bus stops')].every(card => card.ariaPressed === 'false')).toBe(true);
-  });
-
-  it('offers three stations and five bus stops at most, and six of a stop’s routes', async () => {
-    const routes = ['1', '12', '35', '40', '45', '68', '148', '171'];
-    const many = [
-      ...['A', 'B', 'C', 'D', 'E', 'F'].map((letter, index) => busStop(letter, 100 + index, routes)),
-      ...['1', '2', '3', '4'].map(id => station(id, `Station ${id}`, 500, ['Northern']))
-    ];
-    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: many });
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    expect(await screen.findByRole('region', { name: 'Bus stops' })).toBeInTheDocument();
-    expect(column('Bus stops')).toHaveLength(5);
-    expect(column('Stations')).toHaveLength(3);
-    expect(column('Bus stops')[0]).toHaveTextContent(/11235404568\+2$/);
-  });
-
-  it('saves the stops ticked, keeping how they are grouped, then says what was set', async () => {
-    vi.mocked(loadDeviceConfig).mockResolvedValue({ ...CONFIG, arrivals: { stops: [], group_by_route: true } });
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    await screen.findByRole('region', { name: 'Bus stops' });
-    const [k, m] = column('Bus stops');
-    const [kennington] = column('Stations');
-    if (!k || !m || !kennington) throw new Error('No stops listed');
-    await userEvent.click(k);
-    await userEvent.click(m);
-    await userEvent.click(m);
-    await userEvent.click(kennington);
-    expect(k).toHaveAttribute('aria-pressed', 'true');
-    expect(m).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('You’re all set!');
-    expect(saveConfigSection).toHaveBeenLastCalledWith('arrivals', {
-      stops: [NEAREST.value, KENNINGTON.value],
-      group_by_route: true
-    });
-    expect(rememberStop).toHaveBeenCalledWith(NEAREST);
-    expect(rememberStop).toHaveBeenCalledWith(KENNINGTON);
-    expect(screen.getAllByRole('listitem').map(item => item.textContent)).toEqual(
-      expect.arrayContaining(['SE17 2PU', 'London', '2 stops'])
-    );
-    expect(screen.getByText(/in Settings whenever you like/)).toBeInTheDocument();
-    expect(finishLocation).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(finishLocation).toHaveBeenCalled();
-    expect(current()).toBe('Presence');
-  });
-
-  it('goes on with no stops ticked, saving none', async () => {
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    expect(await screen.findByText('No stops yet')).toBeInTheDocument();
-    expect(saveConfigSection).not.toHaveBeenCalledWith('arrivals', expect.anything());
-  });
-
-  it('looks up a postcode typed, and asks for the stops near it when it is across town', async () => {
-    vi.mocked(findPostcode).mockResolvedValue({ latitude: 51.5007, longitude: -0.1246 });
-    render(<SetupWizard />);
-    await typeInstead();
-    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
-    await userEvent.type(field(), 'not one');
-    expect(field()).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByText('Enter a UK or Norwegian postcode.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
-    await userEvent.type(field(), 'sw1a2aa');
-    expect(field()).toHaveAttribute('aria-invalid', 'false');
-    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    expect(await screen.findByRole('region', { name: 'Stations' })).toBeInTheDocument();
-    expect(findPostcode).toHaveBeenCalledExactlyOnceWith('SW1A 2AA');
-    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
-      postcode: 'SW1A 2AA',
-      country: 'GB',
-      address: null
-    });
-    expect(locatePlace).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 });
-    expect(nearbyStops).toHaveBeenCalledWith({ latitude: 51.5007, longitude: -0.1246 }, expect.any(AbortSignal));
-    expect(column('Stations').map(card => card.textContent)).toEqual(['Westminster90 mDistrictCircleJubilee']);
-    expect(screen.queryByRole('region', { name: 'Bus stops' })).not.toBeInTheDocument();
-  });
-
-  it('goes back from typing to the postcodes found', async () => {
-    render(<SetupWizard />);
-    await typeInstead();
-    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(nearest()).toBeInTheDocument();
-  });
-
-  it('uses the stops found in the background for a postcode typed near them', async () => {
-    render(<SetupWizard />);
-    await typeInstead();
-    await userEvent.type(field(), 'SE17 2PU');
-    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    await screen.findByRole('region', { name: 'Bus stops' });
-    expect(nearbyStops).not.toHaveBeenCalled();
-  });
-
-  it('asks for the stops near the postcode when none were found in the background', async () => {
-    vi.mocked(useSetupLocation).mockReturnValue({ location: LOCATION, stops: null });
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    expect(await screen.findByRole('button', { name: /^Westminster/ })).toBeInTheDocument();
-    expect(nearbyStops).toHaveBeenCalledOnce();
-  });
-
-  it('says so when there is no such postcode, and stays', async () => {
-    vi.mocked(findPostcode).mockResolvedValue('unknown');
-    render(<SetupWizard />);
-    await typeInstead();
-    await userEvent.type(field(), 'ZZ1 1ZZ');
-    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Hmm, we couldn’t find that postcode.');
-    expect(saveConfigSection).not.toHaveBeenCalled();
-  });
-
-  it('saves a postcode typed that could not be looked up, and says no stops were found', async () => {
-    vi.mocked(findPostcode).mockResolvedValue('failed');
-    render(<SetupWizard />);
-    await typeInstead();
-    await userEvent.type(field(), '0150');
-    await userEvent.click(screen.getByRole('button', { name: 'Use' }));
-    expect(await screen.findByText('We couldn’t find any stops nearby.')).toBeInTheDocument();
-    expect(saveConfigSection).toHaveBeenCalledWith('notice_board', {
-      postcode: '0150',
-      country: 'NO',
-      address: CONFIG.notice_board.address
-    });
-    expect(locatePlace).not.toHaveBeenCalled();
-    expect(nearbyStops).not.toHaveBeenCalled();
-    expect(screen.queryByRole('region')).toHaveAccessibleName('Location');
-  });
-
-  it('goes on when the weather cannot be found, leaving it out of what was set', async () => {
-    vi.mocked(locatePlace).mockRejectedValue(new SearchFailed());
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    await screen.findByText('You’re all set!');
-    expect(saveConfigSection).not.toHaveBeenCalledWith('weather', expect.anything());
-    expect(screen.queryByText('London')).not.toBeInTheDocument();
-  });
-
-  it('says so when the postcode cannot be saved, and stays', async () => {
-    vi.mocked(saveConfigSection).mockResolvedValue({ error: 'failed' });
-    render(<SetupWizard />);
-    await userEvent.click(nearest());
-    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong there. Try again?');
-    expect(nearest()).toBeInTheDocument();
-    expect(locatePlace).not.toHaveBeenCalled();
+    onServer(undefined);
+    onWifi({ state: 'connected', ssid: 'Home', address: 'an address' });
+    const asking = render(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    asking.rerender(<SetupWizard />);
+    onWifi({ state: 'disconnected', address: null });
+    asking.rerender(<SetupWizard />);
+    expect(current()).toBe('Wi-Fi');
   });
 });

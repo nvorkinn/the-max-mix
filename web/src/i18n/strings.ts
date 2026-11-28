@@ -613,41 +613,9 @@ export const STRINGS = {
     en: 'Select your phone when it appears.',
     nb: 'Velg telefonen din når den dukker opp.'
   },
-  'setup.location_where': { en: 'Is this your postcode?', nb: 'Er dette postnummeret ditt?' },
-  'setup.location_nearest': { en: 'Our best guess', nb: 'Vår beste gjetning' },
-  'setup.location_others': { en: 'Or one of these nearby?', nb: 'Eller et av disse i nærheten?' },
-  'setup.location_looking': { en: 'Finding where you are…', nb: 'Finner ut hvor du er …' },
-  'setup.location_type': { en: 'Not here? Type it in', nb: 'Ikke her? Skriv det inn' },
-  'setup.location_type_title': { en: 'What’s your postcode?', nb: 'Hva er postnummeret ditt?' },
-  'setup.location_use': { en: 'Use', nb: 'Bruk' },
-  'setup.location_skip': { en: 'Skip for now', nb: 'Hopp over for nå' },
-  'setup.location_unknown': {
-    en: 'Hmm, we couldn’t find that postcode.',
-    nb: 'Hmm, vi fant ikke det postnummeret.'
-  },
-  'setup.location_failed': {
-    en: 'Something went wrong there. Try again?',
-    nb: 'Noe gikk galt. Prøve igjen?'
-  },
-  'setup.location_stops': {
-    en: 'The tablet can show live bus and Tube times',
-    nb: 'Nettbrettet kan vise sanntid for buss og T-bane'
-  },
-  'setup.location_stops_tap': { en: 'Tap the stops you use most.', nb: 'Trykk på stoppene du bruker mest.' },
-  'setup.location_no_stops': {
-    en: 'We couldn’t find any stops nearby.',
-    nb: 'Vi fant ingen stopp i nærheten.'
-  },
-  'setup.location_stations': { en: 'Stations', nb: 'Stasjoner' },
-  'setup.location_bus_stops': { en: 'Bus stops', nb: 'Bussholdeplasser' },
-  'setup.location_set': { en: 'You’re all set!', nb: 'Da er du klar!' },
-  'setup.location_stop_count': {
-    en: '{count, plural, =0 {No stops yet} one {# stop} other {# stops}}',
-    nb: '{count, plural, =0 {Ingen stopp ennå} one {# stopp} other {# stopp}}'
-  },
-  'setup.location_in_settings': {
-    en: 'You can change these, or add more stops, in Settings whenever you like.',
-    nb: 'Du kan endre dette, eller legge til flere stopp, i Innstillinger når du vil.'
+  'setup.location_on_phone': {
+    en: 'Tell us where the tablet is on your phone: your postcode, and the stops you use most. You can skip this for now.',
+    nb: 'Fortell oss hvor nettbrettet står, på telefonen: postnummeret ditt og stoppene du bruker mest. Du kan hoppe over dette for nå.'
   },
   'setup.start': { en: 'Start', nb: 'Start' },
   'setup.complete': { en: 'Setup complete', nb: 'Oppsettet er ferdig' }

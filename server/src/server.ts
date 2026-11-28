@@ -36,10 +36,6 @@
 //                           or 503 {"error"}   POST /wifi/hotspot/stop  end it
 //                           GET /wifi/hotspot  {"state": "idle" | "running" | "connected" | "joining" | "joined" | "failed", "error"?,
 //                           "ssid"? (the network being joined)}
-//   GET  /location/scan     {"accessPoints": [{"macAddress": "aa:bb:cc:dd:ee:ff", "signalStrength": -52 (dBm), "channel": 36,
-//                           "age"? (ms, only when known)}, …]}: the access points in range, strongest first, at most 30,
-//                           for the setup wizard to find the kiosk's postcode with (nmcli.ts locate), or 503 {"error"}: a
-//                           safe message (the app's origin only)
 //   GET  /camera            {"available": true}: whether the screen has a camera (camera.ts; the app's origin only)
 //   GET  /camera/stream     the camera's picture while the request is open, as multipart/x-mixed-replace JPEG frames, for
 //                           reading a Wi-Fi QR code held up to it; the camera is on only meanwhile, three minutes at
@@ -109,7 +105,7 @@ import type { LyricsQuery } from './lyrics-sources.ts';
 import { lyricsLookup, parseLyricsQuery } from './lyrics.ts';
 import type { LyricsHit } from './lyrics.ts';
 import { parseConnectRequest, parseForgetRequest } from './nmcli.ts';
-import type { AccessPoint, ConnectRequest, ConnectResult, Network } from './nmcli.ts';
+import type { ConnectRequest, ConnectResult, Network } from './nmcli.ts';
 import { discoverPhones, nameKiosk } from './phone-discovery.ts';
 import { forgetPhone, PhonePairing, readPhones, savePhone } from './phone-pairing.ts';
 import type { PairingStatus } from './phone-pairing.ts';
@@ -230,8 +226,6 @@ interface Wifi {
   saved: () => Promise<string[]>;
   /** Deletes the Pi's saved connections to a network. */
   forget: (ssid: string) => Promise<ConnectResult>;
-  /** The access points in range, strongest first, to find where the kiosk is. */
-  locate: () => Promise<AccessPoint[]>;
 }
 
 /** An error the app reported, for the journal. */
@@ -632,15 +626,6 @@ async function listNetworks(response: ServerResponse, wifi: Wifi): Promise<void>
   }
 }
 
-async function scanForLocation(response: ServerResponse, wifi: Wifi): Promise<void> {
-  try {
-    sendJson(response, 200, { accessPoints: await wifi.locate() });
-  } catch (error) {
-    // nmcli.ts rejects with a message that is safe to show.
-    sendJson(response, 503, { error: error instanceof Error ? error.message : String(error) });
-  }
-}
-
 /** GET /lyrics: the app's origin only, since each request makes the Pi call out to the lyrics sources. */
 async function getLyrics(
   request: IncomingMessage,
@@ -898,7 +883,6 @@ function appOnlyGet(
   }
   if (url === '/camera/stream') return () => streamCamera(request, response, deps);
   // The access points around the Pi say where it is, so only the app's setup wizard may ask.
-  if (url === '/location/scan') return () => scanForLocation(response, deps.wifi);
   // Each makes the Pi talk to the speakers on the home network, so only the app may ask.
   if (/^\/sonos\/(groups|now|art)(\?|$)/.test(url)) return () => getSonos(request, response, deps);
   return null;
